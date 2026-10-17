@@ -1,0 +1,3 @@
+[submodule "upstream/qucs-s"]
+	path = upstream/qucs-s
+	url = https://github.com/ra3xdh/qucs_s.git
