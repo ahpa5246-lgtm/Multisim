@@ -127,3 +127,14 @@ Pinned qucs_init.cpp registers Save All as Ctrl+Shift+S and Save As using QKeySe
 patches/0001-distinct-save-all-shortcut.patch preserves the pinned upstream revision and notices. scripts/apply_patches.py checks that revision, applies only reviewed patches, recognizes an already applied patch and rejects conflicts. Both Linux and Windows builds apply it before configuration. Two local applications succeeded idempotently; the expected distinct source bindings, seventeen tests, compileall and both repository/upstream diff checks passed. Actual patched compilation and GUI saving remain pending CI.
 
 The change affects the default Save All shortcut; existing customized settings may still require conflict review. No document, wiring, model, .ms14 format or solver behavior is modified. The GUI harness now captures a timeout screenshot to improve diagnosis if the expected dialog still fails to appear.
+
+
+## Save probe environment repair; Windows Git dependency
+
+Runs 39114920084 (Linux) and 39114920083 (Windows) failed at 8287b470dbd9dd1969f58812a9a8c0a0181411c2. Windows failed before compilation because native Python could not start git (WinError 2) inside the isolated MSYS2 environment. Add git explicitly to the MSYS2 install list; no checkout/patch guard is removed.
+
+Linux still did not open Save As after the distinct-shortcut patch, so the earlier collision hypothesis does not fully explain the observed failure. Downloaded artifact 12132307193 and inspected save-timeout.png and startup.log: the application remains on rc.sch without a save dialog; the log contains no explicit ambiguous-shortcut warning. Do not report the shortcut patch as having fixed this GUI failure.
+
+The existing Xvfb test ran without a window manager and only set X input focus. Qt window-scoped actions can remain inactive in that environment. Add Openbox to the isolated CI display and explicitly activate the application's top-level window before requesting Save As. This is an environment correction and remains a hypothesis pending the real run, not a successful save claim. The exact-dialog, non-overwrite and saved-topology checks remain unchanged.
+
+Local evidence: seventeen tests, compileall and diff checks pass. Next run must inspect both jobs and the actual save-dialog/saved-file evidence. No new feature work proceeds while these gates fail.

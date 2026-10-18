@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      - run: sudo apt-get update && sudo apt-get install -y build-essential cmake qt6-base-dev qt6-tools-dev qt6-tools-dev-tools libqt6svg6-dev libqt6opengl6-dev flex bison gperf dos2unix ngspice xvfb xauth xdotool imagemagick
+      - run: sudo apt-get update && sudo apt-get install -y build-essential cmake qt6-base-dev qt6-tools-dev qt6-tools-dev-tools libqt6svg6-dev libqt6opengl6-dev flex bison gperf dos2unix ngspice xvfb xauth xdotool imagemagick openbox
       - run: python3 scripts/build.py --jobs 2
       - name: Confirm binary version
         run: QT_QPA_PLATFORM=offscreen ./install/bin/qucs-s --version
@@ -42,7 +42,11 @@ jobs:
           name: exported-rc-numerical-evidence
           path: reports/exported-rc.json
       - name: Capture actual X11 startup
-        run: xvfb-run -a -s "-screen 0 1440x1000x24" python3 scripts/verify_desktop.py --executable install/bin/qucs-s --schematic examples/rc.sch --save-copy reports/desktop/rc-saved.sch
+        run: |
+          xvfb-run -a -s "-screen 0 1440x1000x24" sh -c '
+            openbox > /tmp/qucs-openbox.log 2>&1 &
+            exec python3 scripts/verify_desktop.py --executable install/bin/qucs-s --schematic examples/rc.sch --save-copy reports/desktop/rc-saved.sch
+          '
       - name: Validate GUI-saved circuit through editor export
         run: QT_QPA_PLATFORM=offscreen python3 scripts/verify_netlist.py --executable install/bin/qucs-s --schematic reports/desktop/rc-saved.sch --output reports/desktop/saved-netlist
       - uses: actions/upload-artifact@v4

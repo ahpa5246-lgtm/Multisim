@@ -9,6 +9,8 @@ def save_copy(pid: int, window: str, destination: Path):
     if destination.exists():
         raise ValueError('Refusing to overwrite the roundtrip destination')
     destination.parent.mkdir(parents=True, exist_ok=True)
+    # Qt WindowShortcut actions require an active top-level window, not X input focus alone.
+    subprocess.run(['xdotool', 'windowactivate', '--sync', window], check=True, timeout=10)
     subprocess.run(['xdotool', 'windowfocus', '--sync', window], check=True, timeout=5)
     subprocess.run(['xdotool', 'key', '--clearmodifiers', 'ctrl+shift+s'], check=True, timeout=5)
     deadline = time.monotonic() + 10

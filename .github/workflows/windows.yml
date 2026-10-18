@@ -19,7 +19,7 @@ jobs:
           msystem: UCRT64
           cache: true
           update: true
-          install: bison flex dos2unix
+          install: git bison flex dos2unix
           pacboy: cmake:p gcc:p qt6-base:p qt6-tools:p qt6-svg:p qt6-charts:p ninja:p python:p gperf:p
       - name: Apply reviewed upstream patches
         run: python scripts/apply_patches.py
