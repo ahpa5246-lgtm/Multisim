@@ -70,3 +70,14 @@ Comparison source checked 2026-10-18: NI documents Transfer > Export netlist and
 https://knowledge.ni.com/KnowledgeArticleDetails?id=kA03q000000YHimCAG&l=en-US
 https://www.ni.com/docs/en-US/bundle/multisim/page/topics/multisim-spice-reference.html
 The gate checks the analogous basic export task only. It does not prove compatibility of full models, NI file formats, instruments, netlist dialects, or numerical results. The separate charging netlist still supplies the analytic solver baseline; the schematic's export check is not a transient-equivalence claim.
+
+
+## Schematic export verified; native Windows gate prepared
+
+Run 39093208887 succeeded at 69f16040034c85305433d1cc9a55c17ab2082931:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39093208887
+Downloaded artifact 12124326150 and inspected the actual rc-export.cir and validation.json. The compiled editor exported V1 in 0 DC 5, R1 in out 1K and C1 0 out 1U; the capacitor is nonpolar, so its reversed terminal order preserves the tested connectivity. The report passes all three component checks. This confirms file parsing/export, not interactive placement, GUI save/reload or transient startup behavior.
+
+Next bounded milestone: native Windows compilation and the same schematic-export contract using MSYS2 UCRT64, following the pinned upstream deploy.yml dependency/build approach. It lives on a separate stacked branch based on the verified foundation PR. The native job will compile/install, execute --version and run the RC export validator. It deliberately does not call a build artifact a portable installer: standalone Qt/runtime deployment, ngspice bundling and clean-machine interaction remain open.
+
+Local evidence remains fourteen passing Python tests, compileall and diff checks. A Windows runner result does not exist yet; this change adds the gate, not a Windows success claim. No new backend, service, proprietary source, .ms14 support or instrument UI is introduced.

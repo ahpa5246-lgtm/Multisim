@@ -11,7 +11,8 @@ Spec: docs/DESIGN.md.
 - [x] Document precise parity gaps and review evidence.
 - [x] Obtain successful remote build and solver logs (run 39078237801).
 - [x] Capture and visually inspect actual Linux startup (run 39089285681, artifact 12122511783); startup alone is not interaction validation.
-- [ ] Export RC schematic with the compiled editor and validate values/connectivity in CI.
+- [x] Export RC schematic with the compiled editor and validate values/connectivity in CI (run 39093208887).
+- [ ] Compile on native Windows and run the same schematic export contract.
 - [ ] Build Windows package and perform editor wiring/save/load/run interaction test.
 
 Review focus: missing dependency must fail; nonfinite data must fail; inadequate time coverage must fail; file paths containing spaces must work; subprocess failure must propagate.

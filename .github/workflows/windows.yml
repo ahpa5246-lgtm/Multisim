@@ -1,0 +1,41 @@
+name: Native Windows foundation
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  windows-build-and-export:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      # Adapted from the pinned Qucs-S deploy.yml UCRT64 build recipe.
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          cache: true
+          update: true
+          install: bison flex dos2unix
+          pacboy: cmake:p gcc:p qt6-base:p qt6-tools:p qt6-svg:p qt6-charts:p ninja:p python:p gperf:p
+      - name: Configure pinned desktop source
+        run: cmake -S upstream/qucs-s -B build-windows -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PWD/install-windows"
+      - name: Build and install
+        run: |
+          cmake --build build-windows --parallel 2
+          cmake --install build-windows
+      - name: Verify native binary and schematic export
+        run: |
+          export QT_QPA_PLATFORM=offscreen
+          ./install-windows/bin/qucs-s.exe --version
+          python scripts/verify_netlist.py --executable install-windows/bin/qucs-s.exe --output reports/windows-netlist
+      - name: Upload native export evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-schematic-export-evidence
+          path: reports/windows-netlist/
+          if-no-files-found: warn
