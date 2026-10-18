@@ -17,6 +17,7 @@ Spec: docs/DESIGN.md.
 - [x] Visually inspect the loaded RC schematic in desktop and narrow Linux windows (run 39106858952; narrow analysis block clips).
 - [x] Exercise GUI Save As and validate the saved circuit through editor export (run 39126560602).
 - [x] Visually inspect a fresh GUI process reopening the GUI-saved RC copy (run 39144396633).
+- [ ] Trigger F2 in reopened Linux GUI and inspect a newly produced dataset.
 - [ ] Build Windows package and perform editor wiring/save/load/run interaction test.
 
 Review focus: missing dependency must fail; nonfinite data must fail; inadequate time coverage must fail; file paths containing spaces must work; subprocess failure must propagate.

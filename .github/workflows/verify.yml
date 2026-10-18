@@ -51,7 +51,7 @@ jobs:
         run: |
           xvfb-run -a -s "-screen 0 1440x1000x24" sh -c '
             openbox > /tmp/qucs-reopen-openbox.log 2>&1 &
-            exec python3 scripts/verify_desktop.py --executable install/bin/qucs-s --schematic reports/desktop/rc-saved.sch --output reports/desktop/reopened
+            exec python3 scripts/verify_desktop.py --executable install/bin/qucs-s --schematic reports/desktop/rc-saved.sch --output reports/desktop/reopened --simulation-output reports/desktop/rc-saved.dat
           '
       - name: Validate GUI-saved circuit through editor export
         run: QT_QPA_PLATFORM=offscreen python3 scripts/verify_netlist.py --executable install/bin/qucs-s --schematic reports/desktop/rc-saved.sch --output reports/desktop/saved-netlist
