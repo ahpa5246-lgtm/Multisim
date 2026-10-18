@@ -32,3 +32,14 @@ Simulation job 117529733037 logs report max_error_v=1.4681871751243136e-05 (abou
 The next bounded milestone adds scripts/verify_desktop.py and a CI Xvfb startup capture. It requires a live process with a visible window at least 640x400, records title/geometry, captures a real PNG and startup log, and terminates its own process. Missing dependencies, early exits and no window fail. The version check now executes the actual binary. Capture may include a first-run dialog; it is explicitly NOT proof of a usable editor or completed drawing/simulation workflow.
 
 Local checks: six validator tests pass; Python compileall passes; nonexistent executable fails with exit 1. Full GUI capture cannot run locally without Qt/X11 dependencies; the new remote job must supply that evidence. No Windows, .ms14, instrument, or NI parity claim. Next run must inspect this PR and its artifacts before expanding scope.
+
+
+## Startup failure diagnosis and focused repair
+
+Run 39082440616 at commit 53acf337ee3e27cb50506bb7842e8f1a4fdc4528 built successfully and passed the real solver check, but desktop startup timed out:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39082440616
+The failing step was Capture actual X11 startup (desktop job 117542006018); the version command succeeded.
+
+Source inspection of pinned upstream qucs/qucs.cpp lines 175–250 shows that first launch opens the modal information notice titled Set simulator before main.cpp calls QucsMain->show(). The prior harness ignored every small window and never acknowledged that notice. This is a source-backed diagnosis pending remote confirmation, not evidence that the application crashed.
+
+Repair stays in PR #1: capture and acknowledge that exact informational notice once for this process, then retain the existing 640x400 main-window gate. Unknown dialogs receive no key events. On timeout, record observed window titles/geometry and a root screenshot rather than leaving only a silent log. A regression test restricts acknowledgement to the known notice; all seven local tests and Python compilation pass. X11 execution is still unavailable locally. Inspect the next CI result and actual screenshots before marking startup verified. No UI feature, Windows, .ms14 or NI parity claim.

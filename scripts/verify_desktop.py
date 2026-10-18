@@ -8,6 +8,12 @@ import subprocess
 import time
 
 
+def is_known_setup_notice(title: str) -> bool:
+    # Upstream qucs.cpp shows this informational notice before QucsMain->show().
+    # Do not send keys to unknown dialogs or weaken the main-window size gate.
+    return title == 'Set simulator'
+
+
 def capture(executable: Path, output: Path, timeout: float = 30):
     executable = executable.resolve()
     if not executable.is_file():
@@ -21,6 +27,8 @@ def capture(executable: Path, output: Path, timeout: float = 30):
     with (output / 'startup.log').open('w') as log:
         process = subprocess.Popen([str(executable)], stdout=log, stderr=subprocess.STDOUT)
         try:
+            acknowledged = []
+            observed = {}
             deadline = time.monotonic() + timeout
             while time.monotonic() < deadline:
                 if process.poll() is not None:
@@ -31,22 +39,32 @@ def capture(executable: Path, output: Path, timeout: float = 30):
                     geometry = subprocess.run(['xdotool', 'getwindowgeometry', '--shell', window],
                                               capture_output=True, text=True, check=True, timeout=5)
                     values = dict(line.split('=', 1) for line in geometry.stdout.splitlines() if '=' in line)
-                    if int(values.get('WIDTH', 0)) < 640 or int(values.get('HEIGHT', 0)) < 400:
-                        continue
                     title = subprocess.run(['xdotool', 'getwindowname', window], capture_output=True,
                                            text=True, check=True, timeout=5).stdout.strip()
+                    observed[window] = {'title': title, 'geometry': values}
+                    if is_known_setup_notice(title) and not acknowledged:
+                        subprocess.run(['import', '-window', window, str(output / 'setup-notice.png')],
+                                       check=True, timeout=10)
+                        subprocess.run(['xdotool', 'key', '--window', window, 'Return'],
+                                       check=True, timeout=5)
+                        acknowledged.append(title)
+                        continue
+                    if int(values.get('WIDTH', 0)) < 640 or int(values.get('HEIGHT', 0)) < 400:
+                        continue
                     # Allow the initial paint to finish, then fail if it crashed.
                     time.sleep(1)
                     if process.poll() is not None:
                         raise RuntimeError('Application crashed during initial paint')
                     subprocess.run(['import', '-window', window, str(output / 'startup.png')],
                                    check=True, timeout=10)
-                    report = {'status': 'captured', 'title': title, 'geometry': values,
+                    report = {'status': 'captured', 'title': title, 'geometry': values, 'acknowledged_notices': acknowledged,
                               'limits': 'X11 startup only; first-run dialogs may be present. No wiring, saving, simulation or Windows claim.'}
                     (output / 'startup.json').write_text(json.dumps(report, indent=2) + '\n')
                     print(json.dumps(report))
                     return
                 time.sleep(.25)
+            (output / 'observed-windows.json').write_text(json.dumps(observed, indent=2) + '\n')
+            subprocess.run(['import', '-window', 'root', str(output / 'timeout-screen.png')], timeout=10)
             raise RuntimeError('No visible window of at least 640x400 appeared before timeout')
         finally:
             if process.poll() is None:
