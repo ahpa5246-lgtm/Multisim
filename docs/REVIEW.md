@@ -92,3 +92,14 @@ Downloaded artifact 12125467419 and inspected its exported netlist and passing v
 The next bounded test closes a real integration gap: until now schematic export and the analytic solver baseline were separate. scripts/verify_rc.py now accepts --netlist, preserves all exported devices/includes, and replaces only the control block with explicit zero-charge (uic) measurement conditions. CI runs ngspice on those actual exported devices and validates the sampled waveform using the existing analytic contract. This changes test initial conditions deliberately; it is not a claim that the schematic's default DC-initialized transient charges from zero.
 
 Two new cases were observed failing before implementation, then all sixteen local tests passed. They check that exported device text survives command substitution and ambiguous/missing control blocks fail. Full solver integration remains pending CI because ngspice is unavailable locally. A passing future run will establish schematic-file -> editor export -> solver -> analytic waveform, still without interactive GUI or NI comparison claims.
+
+
+## Exported-device simulation verified; schematic visual inspection prepared
+
+Run 39099994687 passed at 80ada4fafa5e635dc5df52510f4285dcf67f6b18:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39099994687
+Downloaded artifact 12125989438 and inspected exported-rc.json: 511 samples, maximum error 1.4681871751243136e-05 V, ngspice-42. The real chain schematic file -> compiled editor export -> actual exported devices -> ngspice -> analytic waveform is verified with explicitly overridden zero-charge measurement commands. This is still not an NI result comparison or GUI simulation test.
+
+The current branch now asks the desktop capture harness to open examples/rc.sch and capture 1280x900 and 800x600 window views in addition to startup.png. It moves the window to the screen origin to avoid clipping. requested_schematic in the report is deliberately phrased as a request, not proof of successful rendering. The next run must visually inspect actual screenshots for source/resistor/capacitor connections and window density before recording success. No UI redesign or save/reload interaction is claimed.
+
+Local verification: sixteen tests pass; compileall and diff checks pass. Full X11 fixture opening/resizing remains pending remote evidence. Preserve the current PR instead of starting another independent task.

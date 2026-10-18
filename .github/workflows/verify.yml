@@ -42,7 +42,7 @@ jobs:
           name: exported-rc-numerical-evidence
           path: reports/exported-rc.json
       - name: Capture actual X11 startup
-        run: xvfb-run -a -s "-screen 0 1440x1000x24" python3 scripts/verify_desktop.py --executable install/bin/qucs-s
+        run: xvfb-run -a -s "-screen 0 1440x1000x24" python3 scripts/verify_desktop.py --executable install/bin/qucs-s --schematic examples/rc.sch
       - uses: actions/upload-artifact@v4
         if: always()
         with:
