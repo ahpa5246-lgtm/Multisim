@@ -15,7 +15,7 @@ Spec: docs/DESIGN.md.
 - [x] Compile on native Windows and run the same schematic export contract (run 39096265664).
 - [x] Simulate the actual editor-exported RC devices with explicit zero-charge test conditions (run 39099994687).
 - [x] Visually inspect the loaded RC schematic in desktop and narrow Linux windows (run 39106858952; narrow analysis block clips).
-- [ ] Exercise GUI Save As and validate the saved circuit through editor export.
+- [x] Exercise GUI Save As and validate the saved circuit through editor export (run 39126560602).
 - [ ] Build Windows package and perform editor wiring/save/load/run interaction test.
 
 Review focus: missing dependency must fail; nonfinite data must fail; inadequate time coverage must fail; file paths containing spaces must work; subprocess failure must propagate.

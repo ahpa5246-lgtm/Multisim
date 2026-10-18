@@ -163,3 +163,14 @@ Downloaded artifact 12135430595 and visually inspected file-menu.png. File is op
 The duplicate pull-request run 39122706561 failed earlier with no PID-visible windows and a black timeout-screen.png (artifact 12134959478); do not confuse that separate startup failure with the inspected menu run. It remains an intermittent harness concern. Both native Windows runs passed; no Windows interaction claim follows.
 
 Local validation: patch reverse-check/idempotent application succeeds; seventeen unit tests, compileall and diff checks pass. The next bounded gate remains actual GUI save and topology validation. NI comparison remains limited to the documented export workflow cited above; interactive persistence, instruments, portable Windows and .ms14 compatibility are not accepted.
+
+
+## GUI Save As and saved topology verified
+
+Run 39126560602 passed at 56a7b0cc48161bf58468dcfa3525e32f40d851f6:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39126560602
+The duplicate Desktop run 39126558063 and both native Windows jobs also passed. Downloaded artifact 12135804630 and visually inspected save-dialog.png: a real schematic save dialog with rc.sch selected and Save/Cancel controls. Inspected rc-saved.sch (1064 bytes), startup.json and saved-netlist/validation.json. The GUI created a distinct new file; compiled editor reparse/export reports pass with V1 in 0 DC 5, R1 in out 1K and C1 0 out 1U. This confirms Linux GUI Save As plus saved-file topology persistence, not interactive wiring or GUI reopening.
+
+The explicit shortcut fixed the previously observed unbound action in this tested environment. The report's generic limit text is corrected to refer to the separate roundtrip field, avoiding the contradictory old wording that denied any saving evidence. Seventeen local tests and compileall pass; solver/build/GUI success comes from the linked CI, not local execution.
+
+Critical comparison: this closes one basic desktop persistence gate. NI's documented schematic-to-SPICE workflow remains the functional reference cited above; no NI reference waveform or .ms14 acceptance exists. Narrow-window clipping remains unresolved, there is no original instrument panel, and Windows build/export still does not establish Windows interactive usability or an installer. Next bounded milestone should exercise reopening the GUI-saved copy before moving to instrument work; retain the current completed branch as a draft and use a new isolated branch for that next gate. No merge or publication occurred.

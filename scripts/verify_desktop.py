@@ -91,7 +91,7 @@ def capture(executable: Path, output: Path, timeout: float = 30, schematic: Path
                     roundtrip = save_copy(process.pid, window, save_destination) if save_destination else None
                     report = {'roundtrip': roundtrip, 'status': 'captured', 'requested_schematic': str(schematic) if schematic else None,
                               'captures': captures, 'title': title, 'geometry': values, 'acknowledged_notices': acknowledged,
-                              'limits': 'X11 startup only; first-run dialogs may be present. No wiring, saving, simulation or Windows claim.'}
+                              'limits': 'X11 capture; roundtrip field separately records any GUI Save As. No placement, wiring, GUI simulation or Windows claim.'}
                     (output / 'startup.json').write_text(json.dumps(report, indent=2) + '\n')
                     print(json.dumps(report))
                     return
