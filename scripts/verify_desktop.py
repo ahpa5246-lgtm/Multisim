@@ -34,7 +34,7 @@ def acknowledge_setup_notice(window: str):
                                         output=result.stdout, stderr=result.stderr)
 
 
-def capture(executable: Path, output: Path, timeout: float = 30, schematic: Path | None = None, save_destination: Path | None = None):
+def capture(executable: Path, output: Path, timeout: float = 30, schematic: Path | None = None, save_destination: Path | None = None, simulation_output: Path | None = None):
     executable = executable.resolve()
     if not executable.is_file():
         raise FileNotFoundError(executable)
@@ -88,8 +88,27 @@ def capture(executable: Path, output: Path, timeout: float = 30, schematic: Path
                         subprocess.run(['import', '-window', window, str(output / f'{label}.png')],
                                        check=True, timeout=10)
                         captures.append({'file': f'{label}.png', 'requested_size': [width, height]})
+                    simulation = None
+                    if simulation_output is not None:
+                        dataset = simulation_output.resolve()
+                        if dataset.exists():
+                            raise RuntimeError('Simulation evidence must be a new dataset')
+                        subprocess.run(['xdotool', 'windowactivate', '--sync', window], check=True, timeout=10)
+                        subprocess.run(['xdotool', 'key', '--clearmodifiers', 'F2'], check=True, timeout=5)
+                        sim_deadline = time.monotonic() + 30
+                        while time.monotonic() < sim_deadline:
+                            if dataset.is_file() and dataset.stat().st_size > 0:
+                                break
+                            if process.poll() is not None:
+                                raise RuntimeError('Application exited during GUI simulation')
+                            time.sleep(.25)
+                        subprocess.run(['import', '-window', 'root', str(output/'simulation.png')], check=True, timeout=10)
+                        if not dataset.is_file() or dataset.stat().st_size == 0:
+                            raise RuntimeError('GUI simulation produced no expected dataset')
+                        simulation = {'dataset': str(dataset), 'bytes': dataset.stat().st_size,
+                                      'limits': 'New dataset after F2 only; numerical contents require separate validation'}
                     roundtrip = save_copy(process.pid, window, save_destination) if save_destination else None
-                    report = {'roundtrip': roundtrip, 'status': 'captured', 'requested_schematic': str(schematic) if schematic else None,
+                    report = {'simulation': simulation, 'roundtrip': roundtrip, 'status': 'captured', 'requested_schematic': str(schematic) if schematic else None,
                               'captures': captures, 'title': title, 'geometry': values, 'acknowledged_notices': acknowledged,
                               'limits': 'X11 capture; roundtrip field separately records any GUI Save As. No placement, wiring, GUI simulation or Windows claim.'}
                     (output / 'startup.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -115,9 +134,10 @@ def main():
     parser.add_argument('--schematic', type=Path, help='Open an existing schematic for visual inspection; does not prove successful rendering')
     parser.add_argument('--save-copy', type=Path, help='Exercise GUI Save As to a new artifact path')
     parser.add_argument('--output', type=Path, default=Path('reports/desktop'))
+    parser.add_argument('--simulation-output', type=Path, help='Press F2 and require this new nonempty dataset')
     args = parser.parse_args()
     try:
-        capture(args.executable, args.output, schematic=args.schematic, save_destination=args.save_copy)
+        capture(args.executable, args.output, schematic=args.schematic, save_destination=args.save_copy, simulation_output=args.simulation_output)
     except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
         parser.exit(1, f'FAIL: {exc}\n')
 

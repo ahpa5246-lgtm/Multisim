@@ -214,3 +214,30 @@ Downloaded artifact 12143790537. Inspected reopened/startup.json: the fresh proc
 Critical review: the 800x600 view still clips TR1 at the right edge and spends roughly 40% of width on the component dock. Reopening correctness is accepted for this fixture; narrow-window usability is not. Both Desktop runs and both Windows build/export runs passed at this commit, but that is no Windows GUI, portable installer, interactive wiring or GUI-run simulation evidence. NI numerical parity and .ms14 compatibility remain blocked by missing reference outputs/fixture. The NI export workflow cited above provides only a basic functional comparison.
 
 Local validation: seventeen unit tests, compileall and diff checks pass. No new instrument or UI feature is declared complete. The next bounded desktop task should test an actual editor simulation command and retain solver output rather than infer simulation from a visible analysis block. This completed milestone remains in draft PR #5; no merge or publication occurred.
+
+
+## GUI simulation invocation probe prepared
+
+Both Desktop runs 39153498493 and 39153494938, and both native Windows runs, passed at 1673fcee598f8ba085b3d04c722d742f981d3be5. New isolated branch codex/gui-simulation-probe extends the existing reopened-window harness: activate the process-owned window, send the source-registered F2 simulation shortcut, require a previously absent nonempty rc-saved.dat within 30 seconds, and retain simulation.png. Failure remains explicit; no standalone solver fallback fabricates GUI evidence. The actual Save As output is the simulation input.
+
+This gate proves invocation/output existence only if remote execution passes. It does not yet parse dataset samples, approve waveforms, or claim zero-charge behavior: this schematic uses default operating-point initialization. Existing analytic solver evidence is separate. Next review must inspect real screenshot, dataset and any simulator error before extending numerical checks. NI's documented SPICE workflow remains a partial functional reference, not NI parity; Windows interaction, instrument UX and .ms14 remain unverified. Local seventeen tests, compileall and diff checks pass; GUI execution is pending CI.
+
+
+## GUI solver completed; expected artifact suffix corrected
+
+Run 39157794419 failed the harness at d6c820b18bf926880921604615d8b2359984f23b:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39157794419
+Downloaded artifact 12147863669 and inspected reopened/simulation.png: the actual external-simulator dialog reports ngspice-42 done, Simulation finished and Simulation successful, with 508 data rows. The archive contains rc-saved.dat.ngspice rather than the probe's expected rc-saved.dat. Inspected its real header: Qucs Dataset 26.1.1, independent time vector with 508 samples. This establishes actual GUI invocation and solver completion for that run, despite the incorrect filename gate.
+
+CI now requires the observed backend-specific .dat.ngspice output, preserving the fresh-file/nonempty check. No solver fallback, renamed output or suppressed failure is used. Remote CI must confirm the corrected gate. Numerical correctness of the dataset is not yet accepted: the visible operating point is in=5V, out=5V and the circuit uses DC initialization; it must not be assessed against the zero-charge exponential without changing initial conditions explicitly. Native Windows build/export passed, not Windows GUI. NI parity, instrument UX, wiring and .ms14 remain open. Local seventeen tests, compileall and diff checks pass.
+
+
+## GUI simulation gate passes; actual dataset checked
+
+Run 39162268690 passed at 01fdade6d7540280994fa43e3c43e831636e5bad:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39162268690
+Both Desktop runs and both native Windows runs passed. Downloaded artifact 12150305098 and inspected reopened/startup.json plus rc-saved.dat.ngspice (29063 bytes). An independent Python inspection of the actual file parsed time and tran.v(in)/tran.v(out), asserted 508 finite samples each, strictly increasing time from 0 to .005 seconds, and checked every voltage against 5V within 1 microvolt. Both vectors are exactly 5V at the stored precision (maximum error 0V). This is the expected DC-initialized steady state, not a charging transient. The separate explicit-uic regression supplies charging evidence.
+
+Visual criticism: reopened/simulation.png catches the simulator window before its contents repaint; it is not an acceptable finished-console or waveform screenshot. Earlier run 39157794419 supplied readable completion-console evidence, but this run's numerical file provides the stronger content check. File creation alone was insufficient; the actual vectors now have a bounded manual validation. Next task should make dataset validation repeatable in CI and wait for completed painting before accepting instrument/result visuals.
+
+This closes only the fixture's Linux GUI invocation/output baseline. It does not validate plotting, probe interaction, wiring, Windows GUI/packaging, NI waveform parity or .ms14. No instrument is declared complete. Local seventeen tests, compileall and diff checks pass; no merge/publication occurred.
