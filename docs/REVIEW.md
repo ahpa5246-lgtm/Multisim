@@ -138,3 +138,18 @@ Linux still did not open Save As after the distinct-shortcut patch, so the earli
 The existing Xvfb test ran without a window manager and only set X input focus. Qt window-scoped actions can remain inactive in that environment. Add Openbox to the isolated CI display and explicitly activate the application's top-level window before requesting Save As. This is an environment correction and remains a hypothesis pending the real run, not a successful save claim. The exact-dialog, non-overwrite and saved-topology checks remain unchanged.
 
 Local evidence: seventeen tests, compileall and diff checks pass. Next run must inspect both jobs and the actual save-dialog/saved-file evidence. No new feature work proceeds while these gates fail.
+
+
+## Windows repaired; Save As diagnosis remains open
+
+At 10e21caad65ac8c872cf3808ac213caa416007a2, native Windows run 39118628379 passed after adding Git:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39118628379
+This is native build/export evidence only, not Windows GUI or packaging acceptance.
+
+Linux run 39118628429 still failed at the expected Save As dialog despite Openbox and explicit activation:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39118628429
+Downloaded artifact 12132894414 and visually inspected save-timeout.png: the RC editor remains visible without a save dialog. Compilation, exported-device simulation and the separate numerical job passed. The window-manager hypothesis did not resolve the failure; do not count either attempted repair as verified.
+
+The same PR now captures File menu labels and actual displayed bindings before the shortcut probe, then closes the menu and retains the strict dialog/file/topology gates. This is a diagnostic increment, not a product feature or successful save. Source inspection confirms the action is registered in the shortcut manager and placed after Save All in File. A future actual menu screenshot must establish which action/binding is exposed before another shortcut change.
+
+Compared with NI's documented schematic-to-SPICE export workflow (sources above), basic export and analytic checks are established, but persistence interaction is still below the acceptance boundary. No instrument work starts while desktop CI fails. Local verification: seventeen unit tests and compileall pass; no local Qt/ngspice execution is claimed.

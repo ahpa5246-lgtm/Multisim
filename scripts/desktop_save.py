@@ -12,6 +12,13 @@ def save_copy(pid: int, window: str, destination: Path):
     # Qt WindowShortcut actions require an active top-level window, not X input focus alone.
     subprocess.run(['xdotool', 'windowactivate', '--sync', window], check=True, timeout=10)
     subprocess.run(['xdotool', 'windowfocus', '--sync', window], check=True, timeout=5)
+    # Capture the real menu's labels/bindings before probing the shortcut.
+    # This supplies diagnostic evidence without invoking an assumed menu index.
+    subprocess.run(['xdotool', 'key', '--clearmodifiers', 'alt+f'], check=True, timeout=5)
+    time.sleep(.3)
+    subprocess.run(['import', '-window', 'root', str(destination.parent/'file-menu.png')],
+                   check=True, timeout=10)
+    subprocess.run(['xdotool', 'key', 'Escape'], check=True, timeout=5)
     subprocess.run(['xdotool', 'key', '--clearmodifiers', 'ctrl+shift+s'], check=True, timeout=5)
     deadline = time.monotonic() + 10
     dialog = None
