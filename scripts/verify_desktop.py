@@ -30,10 +30,12 @@ def acknowledge_setup_notice(window: str):
                                         output=result.stdout, stderr=result.stderr)
 
 
-def capture(executable: Path, output: Path, timeout: float = 30):
+def capture(executable: Path, output: Path, timeout: float = 30, schematic: Path | None = None):
     executable = executable.resolve()
     if not executable.is_file():
         raise FileNotFoundError(executable)
+    if schematic is not None:
+        schematic = schematic.resolve(strict=True)
     for tool in ('xdotool', 'import'):
         if not shutil.which(tool):
             raise RuntimeError(f'Missing X11 capture dependency: {tool}')
@@ -41,7 +43,8 @@ def capture(executable: Path, output: Path, timeout: float = 30):
         raise RuntimeError('DISPLAY is required; run with xvfb-run -a')
     output.mkdir(parents=True, exist_ok=True)
     with (output / 'startup.log').open('w') as log:
-        process = subprocess.Popen([str(executable)], stdout=log, stderr=subprocess.STDOUT)
+        command = [str(executable)] + ([str(schematic)] if schematic else [])
+        process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT)
         try:
             acknowledged = []
             observed = {}
@@ -72,7 +75,17 @@ def capture(executable: Path, output: Path, timeout: float = 30):
                         raise RuntimeError('Application crashed during initial paint')
                     subprocess.run(['import', '-window', window, str(output / 'startup.png')],
                                    check=True, timeout=10)
-                    report = {'status': 'captured', 'title': title, 'geometry': values, 'acknowledged_notices': acknowledged,
+                    subprocess.run(['xdotool', 'windowmove', '--sync', window, '0', '0'], check=True, timeout=5)
+                    captures = []
+                    for label, width, height in [('desktop', 1280, 900), ('narrow', 800, 600)]:
+                        subprocess.run(['xdotool', 'windowsize', '--sync', window, str(width), str(height)],
+                                       check=True, timeout=5)
+                        time.sleep(.5)
+                        subprocess.run(['import', '-window', window, str(output / f'{label}.png')],
+                                       check=True, timeout=10)
+                        captures.append({'file': f'{label}.png', 'requested_size': [width, height]})
+                    report = {'status': 'captured', 'requested_schematic': str(schematic) if schematic else None,
+                              'captures': captures, 'title': title, 'geometry': values, 'acknowledged_notices': acknowledged,
                               'limits': 'X11 startup only; first-run dialogs may be present. No wiring, saving, simulation or Windows claim.'}
                     (output / 'startup.json').write_text(json.dumps(report, indent=2) + '\n')
                     print(json.dumps(report))
@@ -94,10 +107,11 @@ def capture(executable: Path, output: Path, timeout: float = 30):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
+    parser.add_argument('--schematic', type=Path, help='Open an existing schematic for visual inspection; does not prove successful rendering')
     parser.add_argument('--output', type=Path, default=Path('reports/desktop'))
     args = parser.parse_args()
     try:
-        capture(args.executable, args.output)
+        capture(args.executable, args.output, schematic=args.schematic)
     except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
         parser.exit(1, f'FAIL: {exc}\n')
 
