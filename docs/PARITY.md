@@ -11,7 +11,8 @@ Status is evidence based. Upstream capabilities are not automatically locally ve
 | Function generator / logic analyzer | Not implemented locally | Signal and timing validation required |
 | .ms14 import | Blocked | Genuine fixture and decoded schema mapping absent |
 | .ms14 export | Not implemented | NI acceptance and roundtrip test required |
-| Windows installer | Not implemented | Native Windows build and clean-machine install |
+| Windows native build/export | Verified in MSYS2 | Run 39096265664; GUI and standalone runtime unverified |
+| Windows installer | Not implemented | Runtime/backend bundling and clean-machine install required |
 | NI numerical comparison | Blocked | NI binary/reference exports absent |
 
 ## Comparison protocol

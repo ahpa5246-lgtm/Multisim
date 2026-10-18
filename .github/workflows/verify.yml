@@ -35,6 +35,12 @@ jobs:
         with:
           name: schematic-export-evidence
           path: reports/netlist/
+      - name: Simulate actual exported RC devices
+        run: python3 scripts/verify_rc.py --netlist reports/netlist/rc-export.cir --output reports/exported-rc.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exported-rc-numerical-evidence
+          path: reports/exported-rc.json
       - name: Capture actual X11 startup
         run: xvfb-run -a -s "-screen 0 1440x1000x24" python3 scripts/verify_desktop.py --executable install/bin/qucs-s
       - uses: actions/upload-artifact@v4
