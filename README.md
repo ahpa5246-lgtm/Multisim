@@ -24,7 +24,7 @@ python3 -m unittest discover -s tests -v
 python3 scripts/verify_rc.py --output reports/rc.json
 ```
 
-The second command requires real ngspice and fails if it is missing. It compares sampled capacitor voltage with the analytic exponential, including the voltage at one time constant. CI runs it separately from the GUI build. This proves a solver baseline, **not** equivalence with Multisim.
+The second command requires real ngspice and fails if it is missing. It compares sampled capacitor voltage with the analytic exponential, including the voltage at one time constant. CI runs it separately from the GUI build. The desktop job also records an X11 startup screenshot and log; that capture does not certify interaction quality. This proves a solver baseline, **not** equivalence with Multisim.
 
 See [architecture](docs/DESIGN.md), [implementation plan](docs/PLAN.md), [parity matrix](docs/PARITY.md), and [review evidence](docs/REVIEW.md).
 

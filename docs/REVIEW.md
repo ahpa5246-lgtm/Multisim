@@ -20,3 +20,15 @@ Read CI logs and fix build/simulation failures. Obtain a native Windows build an
 
 ## Supervision
 A bounded hourly follow-up was created for 24 runs starting 2026-10-18 03:15 Asia/Baghdad. Existing general summaries remain separate. Scheduling does not prove a running Codex Cloud session or guarantee tools/quota on future runs.
+
+
+## Follow-up: verified remote foundation and desktop startup gate
+
+At main commit dbeff93b875e5e14a6d9d07376af0522ce595563, both Linux desktop compilation and the real ngspice regression succeeded:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39078237801
+
+Simulation job 117529733037 logs report max_error_v=1.4681871751243136e-05 (about 0.0147 mV), below the 20 mV contract. This is real ngspice evidence against the analytic RC solution, not against NI Multisim. Desktop job 117529732861 succeeded, but its old final check only tested that the installed binary was executable.
+
+The next bounded milestone adds scripts/verify_desktop.py and a CI Xvfb startup capture. It requires a live process with a visible window at least 640x400, records title/geometry, captures a real PNG and startup log, and terminates its own process. Missing dependencies, early exits and no window fail. The version check now executes the actual binary. Capture may include a first-run dialog; it is explicitly NOT proof of a usable editor or completed drawing/simulation workflow.
+
+Local checks: six validator tests pass; Python compileall passes; nonexistent executable fails with exit 1. Full GUI capture cannot run locally without Qt/X11 dependencies; the new remote job must supply that evidence. No Windows, .ms14, instrument, or NI parity claim. Next run must inspect this PR and its artifacts before expanding scope.
