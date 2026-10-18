@@ -14,6 +14,22 @@ def is_known_setup_notice(title: str) -> bool:
     return title == 'Set simulator'
 
 
+def acknowledge_setup_notice(window: str):
+    command = ['xdotool', 'key', '--window', window, 'Return']
+    result = subprocess.run(command, capture_output=True, text=True, timeout=5)
+    if result.returncode == 0:
+        return
+    # Qt may destroy the modal on key-down, before xdotool sends key-up.
+    # Accept only that specific race, and only when the window is now gone.
+    if 'BadWindow' in result.stderr:
+        probe = subprocess.run(['xdotool', 'getwindowname', window], capture_output=True,
+                               text=True, timeout=5)
+        if probe.returncode != 0 and 'BadWindow' in probe.stderr:
+            return
+    raise subprocess.CalledProcessError(result.returncode, command,
+                                        output=result.stdout, stderr=result.stderr)
+
+
 def capture(executable: Path, output: Path, timeout: float = 30):
     executable = executable.resolve()
     if not executable.is_file():
@@ -45,8 +61,7 @@ def capture(executable: Path, output: Path, timeout: float = 30):
                     if is_known_setup_notice(title) and not acknowledged:
                         subprocess.run(['import', '-window', window, str(output / 'setup-notice.png')],
                                        check=True, timeout=10)
-                        subprocess.run(['xdotool', 'key', '--window', window, 'Return'],
-                                       check=True, timeout=5)
+                        acknowledge_setup_notice(window)
                         acknowledged.append(title)
                         continue
                     if int(values.get('WIDTH', 0)) < 640 or int(values.get('HEIGHT', 0)) < 400:

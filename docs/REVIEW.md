@@ -43,3 +43,14 @@ The failing step was Capture actual X11 startup (desktop job 117542006018); the 
 Source inspection of pinned upstream qucs/qucs.cpp lines 175–250 shows that first launch opens the modal information notice titled Set simulator before main.cpp calls QucsMain->show(). The prior harness ignored every small window and never acknowledged that notice. This is a source-backed diagnosis pending remote confirmation, not evidence that the application crashed.
 
 Repair stays in PR #1: capture and acknowledge that exact informational notice once for this process, then retain the existing 640x400 main-window gate. Unknown dialogs receive no key events. On timeout, record observed window titles/geometry and a root screenshot rather than leaving only a silent log. A regression test restricts acknowledgement to the known notice; all seven local tests and Python compilation pass. X11 execution is still unavailable locally. Inspect the next CI result and actual screenshots before marking startup verified. No UI feature, Windows, .ms14 or NI parity claim.
+
+
+## X11 notice lifetime race — follow-up repair
+
+Run 39085913601 (4451957fff0b778b468938a696017dc01010b5a7) again passed simulation and compilation but failed during the notice acknowledgement:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39085913601
+The exact error was X_SendEvent BadWindow from xdotool key --window ... Return. Downloaded and visually inspected artifact 12121042550: setup-notice.png shows the real informational notice reporting /usr/bin/ngspice and the installed qucsator_rf. This confirms the earlier first-run diagnosis; it does not show the main editor.
+
+The remaining failure is consistent with Qt destroying the notice on Return key-down before xdotool sends key-up. The harness now tolerates only a BadWindow key-send error followed by a BadWindow probe confirming the same window has disappeared. Every other failure, including a still-open notice, propagates. The main window and process-alive gates remain unchanged.
+
+Three new regression cases were observed failing before the helper existed, then all ten tests passed after implementation. Python compilation and diff checks pass. Real X11 confirmation remains pending the next CI run; no startup-success claim is made. Continue the existing PR rather than creating another milestone or weakening the gate.
