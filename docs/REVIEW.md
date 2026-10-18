@@ -241,3 +241,12 @@ Both Desktop runs and both native Windows runs passed. Downloaded artifact 12150
 Visual criticism: reopened/simulation.png catches the simulator window before its contents repaint; it is not an acceptable finished-console or waveform screenshot. Earlier run 39157794419 supplied readable completion-console evidence, but this run's numerical file provides the stronger content check. File creation alone was insufficient; the actual vectors now have a bounded manual validation. Next task should make dataset validation repeatable in CI and wait for completed painting before accepting instrument/result visuals.
 
 This closes only the fixture's Linux GUI invocation/output baseline. It does not validate plotting, probe interaction, wiring, Windows GUI/packaging, NI waveform parity or .ms14. No instrument is declared complete. Local seventeen tests, compileall and diff checks pass; no merge/publication occurred.
+
+
+## Repeatable GUI dataset contract prepared
+
+Both Desktop and Windows workflows passed at 674863a0c25f13136b7b2c62d20d52926f287810 (Desktop run 39166991841). New isolated branch codex/gui-dataset-contract makes the prior manual numerical check repeatable: scripts/verify_gui_dataset.py requires one time vector, declared/sample-count agreement, at least 100 finite strictly increasing samples covering 0..5ms, and exactly one finite input/output vector of matching length within 1 microvolt of 5V. CI consumes the actual F2-produced dataset and retains a JSON report. Missing, duplicated, truncated, nonfinite, wrong-voltage and bad-time evidence fail explicitly.
+
+Nineteen local tests pass, including seven corrupted-dataset cases. This contract is deliberately fixture-specific: default DC initialization gives a steady 5V capacitor, not a charging exponential. The analytic charging test remains separate. It adds no instrument UI, plotting, Windows interaction or .ms14 support, and cannot substitute for NI reference measurements. Remote CI acceptance remains pending. Screenshot repaint quality remains a separate unresolved visual gap; this change does not label it fixed.
+
+The previous temporary downloaded dataset is absent in this local session; invoking the CLI on that missing path failed explicitly. No local real-artifact pass is claimed for the new validator; CI must exercise it on fresh output.
