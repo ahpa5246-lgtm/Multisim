@@ -54,3 +54,19 @@ The exact error was X_SendEvent BadWindow from xdotool key --window ... Return. 
 The remaining failure is consistent with Qt destroying the notice on Return key-down before xdotool sends key-up. The harness now tolerates only a BadWindow key-send error followed by a BadWindow probe confirming the same window has disappeared. Every other failure, including a still-open notice, propagates. The main window and process-alive gates remain unchanged.
 
 Three new regression cases were observed failing before the helper existed, then all ten tests passed after implementation. Python compilation and diff checks pass. Real X11 confirmation remains pending the next CI run; no startup-success claim is made. Continue the existing PR rather than creating another milestone or weakening the gate.
+
+
+## Verified Linux startup and next schematic gate
+
+At commit 34b9cff473738065752343f056c625a1cafdaefe, both workflows passed:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39089285681
+Downloaded startup artifact 12122511783 and visually inspected startup.png. It shows the actual Qucs-S 26.1.1 editor with component browser, blank schematic grid and Ngspice selected, after the known notice was acknowledged. startup.json records a 720x500 window. Startup is now verified on Linux X11 only.
+
+Harsh review: the component dock consumes roughly half this small window, leaving limited drawing space; bottom status labels overlap or crowd. This unmodified upstream screen is functional startup evidence, not a polished Multisim-like workbench. No component has yet been placed interactively, saved, reopened or simulated from the GUI. Windows remains unverified.
+
+The next measurable gate in the existing foundation PR is export of an explicit RC schematic through the compiled editor's --netlist --ngspice command. Added examples/rc.sch plus a fixture-specific validator that checks three component values, source polarity and grounded connectivity. CI saves the actual exported netlist and report. Four new tests failed before implementation and all fourteen local tests now pass; compileall and diff checks pass. Actual editor export is pending CI, not declared successful.
+
+Comparison source checked 2026-10-18: NI documents Transfer > Export netlist and schematic-to-SPICE workflow:
+https://knowledge.ni.com/KnowledgeArticleDetails?id=kA03q000000YHimCAG&l=en-US
+https://www.ni.com/docs/en-US/bundle/multisim/page/topics/multisim-spice-reference.html
+The gate checks the analogous basic export task only. It does not prove compatibility of full models, NI file formats, instruments, netlist dialects, or numerical results. The separate charging netlist still supplies the analytic solver baseline; the schematic's export check is not a transient-equivalence claim.

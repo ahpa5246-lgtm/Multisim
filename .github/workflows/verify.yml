@@ -28,6 +28,13 @@ jobs:
       - run: python3 scripts/build.py --jobs 2
       - name: Confirm binary version
         run: QT_QPA_PLATFORM=offscreen ./install/bin/qucs-s --version
+      - name: Export and validate RC schematic
+        run: QT_QPA_PLATFORM=offscreen python3 scripts/verify_netlist.py --executable install/bin/qucs-s
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: schematic-export-evidence
+          path: reports/netlist/
       - name: Capture actual X11 startup
         run: xvfb-run -a -s "-screen 0 1440x1000x24" python3 scripts/verify_desktop.py --executable install/bin/qucs-s
       - uses: actions/upload-artifact@v4

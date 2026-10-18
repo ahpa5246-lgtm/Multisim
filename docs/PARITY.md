@@ -4,7 +4,7 @@ Status is evidence based. Upstream capabilities are not automatically locally ve
 
 | Workflow | Foundation | Evidence / remaining gate |
 |---|---|---|
-| Desktop schematic editor | Upstream supplied, unverified here | Linux Qt compilation PASS in run 39078237801; interaction unverified |
+| Desktop schematic editor | Upstream supplied, unverified here | Linux compilation and visually inspected X11 startup PASS in run 39089285681; interaction unverified |
 | Component placement/wires/save/load | Upstream supplied, unverified here | Place RC, reconnect wire, save/reload, inspect netlist |
 | RC transient | Test harness implemented | Real ngspice PASS in run 39078237801; analytic baseline only |
 | Oscilloscope / multimeter UX | Not implemented locally | Connect probes to real vectors; test units/scales |
