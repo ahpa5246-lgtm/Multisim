@@ -241,3 +241,23 @@ Both Desktop runs and both native Windows runs passed. Downloaded artifact 12150
 Visual criticism: reopened/simulation.png catches the simulator window before its contents repaint; it is not an acceptable finished-console or waveform screenshot. Earlier run 39157794419 supplied readable completion-console evidence, but this run's numerical file provides the stronger content check. File creation alone was insufficient; the actual vectors now have a bounded manual validation. Next task should make dataset validation repeatable in CI and wait for completed painting before accepting instrument/result visuals.
 
 This closes only the fixture's Linux GUI invocation/output baseline. It does not validate plotting, probe interaction, wiring, Windows GUI/packaging, NI waveform parity or .ms14. No instrument is declared complete. Local seventeen tests, compileall and diff checks pass; no merge/publication occurred.
+
+
+## Repeatable GUI dataset contract prepared
+
+Both Desktop and Windows workflows passed at 674863a0c25f13136b7b2c62d20d52926f287810 (Desktop run 39166991841). New isolated branch codex/gui-dataset-contract makes the prior manual numerical check repeatable: scripts/verify_gui_dataset.py requires one time vector, declared/sample-count agreement, at least 100 finite strictly increasing samples covering 0..5ms, and exactly one finite input/output vector of matching length within 1 microvolt of 5V. CI consumes the actual F2-produced dataset and retains a JSON report. Missing, duplicated, truncated, nonfinite, wrong-voltage and bad-time evidence fail explicitly.
+
+Nineteen local tests pass, including seven corrupted-dataset cases. This contract is deliberately fixture-specific: default DC initialization gives a steady 5V capacitor, not a charging exponential. The analytic charging test remains separate. It adds no instrument UI, plotting, Windows interaction or .ms14 support, and cannot substitute for NI reference measurements. Remote CI acceptance remains pending. Screenshot repaint quality remains a separate unresolved visual gap; this change does not label it fixed.
+
+The previous temporary downloaded dataset is absent in this local session; invoking the CLI on that missing path failed explicitly. No local real-artifact pass is claimed for the new validator; CI must exercise it on fresh output.
+
+
+## Actual GUI dataset contract verified in CI
+
+Run 39171580577 passed at 20a8487e52eb94910cb12ffa88c6d4f8933982ad:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39171580577
+Both Desktop runs and both native Windows build/export runs passed. Downloaded artifact 12152804171 and inspected gui-dataset.json: status pass, 508 samples, maximum errors 0V for tran.v(in) and tran.v(out) at stored precision. Re-ran scripts/verify_gui_dataset.py locally on that actual downloaded rc-saved.dat.ngspice; it passed with the same values. Nineteen unit tests, compileall and diff checks also pass.
+
+Acceptance is narrow and explicit: the actual saved/reopened circuit produces a complete time vector and steady 5V nodes through GUI F2 with DC initialization. It does not prove zero-charge startup, plotting, instrument interaction, arbitrary circuits or numerical parity with NI. The separate charging regression uses explicit uic. The ledger now distinguishes those two initial-condition contracts.
+
+Critical remaining gaps: narrow view clips the analysis block, simulator screenshot can race repaint, no user-facing original instruments have been implemented, placement/wiring is untested, and Windows GUI/standalone packaging and real .ms14 compatibility remain unverified. Next bounded step should improve finished-result visual evidence or test interactive plotting, retaining real vectors; no decorative instrument panel should be accepted as functional progress. This milestone remains draft PR #7; no merge or publication occurred.

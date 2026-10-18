@@ -6,7 +6,7 @@ Status is evidence based. Upstream capabilities are not automatically locally ve
 |---|---|---|
 | Desktop schematic editor | Upstream supplied, unverified here | Linux compilation and visually inspected X11 startup PASS in run 39089285681; interaction unverified |
 | Component placement/wires/save/load | Upstream supplied, unverified here | Linux GUI Save As and reparse/export of saved RC PASS in run 39126560602; fresh-process GUI reopening visually verified in run 39144396633; placement and wiring still unverified |
-| RC transient | Test harness implemented | Real ngspice PASS in run 39078237801; analytic baseline only |
+| RC transient | Test harness implemented | Real exported-device charging baseline PASS; GUI F2 dataset contract PASS in run 39171580577 for DC-initialized 5V only; no NI comparison |
 | Oscilloscope / multimeter UX | Not implemented locally | Connect probes to real vectors; test units/scales |
 | Function generator / logic analyzer | Not implemented locally | Signal and timing validation required |
 | .ms14 import | Blocked | Genuine fixture and decoded schema mapping absent |
