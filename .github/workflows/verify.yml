@@ -47,6 +47,12 @@ jobs:
             openbox > /tmp/qucs-openbox.log 2>&1 &
             exec python3 scripts/verify_desktop.py --executable install/bin/qucs-s --schematic examples/rc.sch --save-copy reports/desktop/rc-saved.sch
           '
+      - name: Reopen GUI-saved copy in a fresh desktop process
+        run: |
+          xvfb-run -a -s "-screen 0 1440x1000x24" sh -c '
+            openbox > /tmp/qucs-reopen-openbox.log 2>&1 &
+            exec python3 scripts/verify_desktop.py --executable install/bin/qucs-s --schematic reports/desktop/rc-saved.sch --output reports/desktop/reopened
+          '
       - name: Validate GUI-saved circuit through editor export
         run: QT_QPA_PLATFORM=offscreen python3 scripts/verify_netlist.py --executable install/bin/qucs-s --schematic reports/desktop/rc-saved.sch --output reports/desktop/saved-netlist
       - uses: actions/upload-artifact@v4
