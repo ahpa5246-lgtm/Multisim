@@ -230,3 +230,14 @@ https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39157794419
 Downloaded artifact 12147863669 and inspected reopened/simulation.png: the actual external-simulator dialog reports ngspice-42 done, Simulation finished and Simulation successful, with 508 data rows. The archive contains rc-saved.dat.ngspice rather than the probe's expected rc-saved.dat. Inspected its real header: Qucs Dataset 26.1.1, independent time vector with 508 samples. This establishes actual GUI invocation and solver completion for that run, despite the incorrect filename gate.
 
 CI now requires the observed backend-specific .dat.ngspice output, preserving the fresh-file/nonempty check. No solver fallback, renamed output or suppressed failure is used. Remote CI must confirm the corrected gate. Numerical correctness of the dataset is not yet accepted: the visible operating point is in=5V, out=5V and the circuit uses DC initialization; it must not be assessed against the zero-charge exponential without changing initial conditions explicitly. Native Windows build/export passed, not Windows GUI. NI parity, instrument UX, wiring and .ms14 remain open. Local seventeen tests, compileall and diff checks pass.
+
+
+## GUI simulation gate passes; actual dataset checked
+
+Run 39162268690 passed at 01fdade6d7540280994fa43e3c43e831636e5bad:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39162268690
+Both Desktop runs and both native Windows runs passed. Downloaded artifact 12150305098 and inspected reopened/startup.json plus rc-saved.dat.ngspice (29063 bytes). An independent Python inspection of the actual file parsed time and tran.v(in)/tran.v(out), asserted 508 finite samples each, strictly increasing time from 0 to .005 seconds, and checked every voltage against 5V within 1 microvolt. Both vectors are exactly 5V at the stored precision (maximum error 0V). This is the expected DC-initialized steady state, not a charging transient. The separate explicit-uic regression supplies charging evidence.
+
+Visual criticism: reopened/simulation.png catches the simulator window before its contents repaint; it is not an acceptable finished-console or waveform screenshot. Earlier run 39157794419 supplied readable completion-console evidence, but this run's numerical file provides the stronger content check. File creation alone was insufficient; the actual vectors now have a bounded manual validation. Next task should make dataset validation repeatable in CI and wait for completed painting before accepting instrument/result visuals.
+
+This closes only the fixture's Linux GUI invocation/output baseline. It does not validate plotting, probe interaction, wiring, Windows GUI/packaging, NI waveform parity or .ms14. No instrument is declared complete. Local seventeen tests, compileall and diff checks pass; no merge/publication occurred.
