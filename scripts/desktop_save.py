@@ -38,9 +38,12 @@ def save_copy(pid: int, window: str, destination: Path):
         subprocess.run(['import', '-window', 'root', str(destination.parent/'save-timeout.png')], timeout=10)
         raise RuntimeError('Save As did not open the expected document-name dialog')
     subprocess.run(['import', '-window', dialog, str(destination.parent/'save-dialog.png')], check=True, timeout=10)
+    subprocess.run(['xdotool', 'windowactivate', '--sync', dialog], check=True, timeout=10)
     subprocess.run(['xdotool', 'windowfocus', '--sync', dialog], check=True, timeout=5)
     subprocess.run(['xdotool', 'key', '--clearmodifiers', 'ctrl+a'], check=True, timeout=5)
     subprocess.run(['xdotool', 'type', '--clearmodifiers', '--delay', '1', '--', str(destination)],
+                   check=True, timeout=10)
+    subprocess.run(['import', '-window', dialog, str(destination.parent/'save-filled.png')],
                    check=True, timeout=10)
     # Untargeted release avoids sending key-up to a destroyed dialog.
     subprocess.run(['xdotool', 'key', 'Return'], check=True, timeout=5)
@@ -50,4 +53,6 @@ def save_copy(pid: int, window: str, destination: Path):
             return {'saved_copy': str(destination), 'bytes': destination.stat().st_size,
                     'limits': 'GUI Save As only; validate saved topology separately'}
         time.sleep(.2)
+    subprocess.run(['import', '-window', 'root', str(destination.parent/'save-file-timeout.png')],
+                   check=True, timeout=10)
     raise RuntimeError('Save As did not produce a nonempty schematic')

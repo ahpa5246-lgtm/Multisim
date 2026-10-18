@@ -174,3 +174,12 @@ The duplicate Desktop run 39126558063 and both native Windows jobs also passed. 
 The explicit shortcut fixed the previously observed unbound action in this tested environment. The report's generic limit text is corrected to refer to the separate roundtrip field, avoiding the contradictory old wording that denied any saving evidence. Seventeen local tests and compileall pass; solver/build/GUI success comes from the linked CI, not local execution.
 
 Critical comparison: this closes one basic desktop persistence gate. NI's documented schematic-to-SPICE workflow remains the functional reference cited above; no NI reference waveform or .ms14 acceptance exists. Narrow-window clipping remains unresolved, there is no original instrument panel, and Windows build/export still does not establish Windows interactive usability or an installer. Next bounded milestone should exercise reopening the GUI-saved copy before moving to instrument work; retain the current completed branch as a draft and use a new isolated branch for that next gate. No merge or publication occurred.
+
+
+## Persistence probe has intermittent file-creation failure
+
+At 1c56efc4fab2cfdd65950f86168c5465c815ba36, Desktop run 39130776097 passed but duplicate run 39130772510 failed with Save As did not produce a nonempty schematic:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39130772510
+The latter reached the expected save dialog; failure is after dialog discovery, unlike the earlier unbound shortcut. Successful prior evidence remains valid for that run, but persistence reliability is not accepted. Do not proceed to reopening/instruments while this gate is intermittent.
+
+The existing branch now activates the dialog explicitly before typing and captures save-filled.png after typing plus save-file-timeout.png if no file appears. This tests the dialog-focus hypothesis and supplies missing evidence of the actual typed path and any subsequent modal. It does not retry, bypass the nonempty-file check, or fabricate a saved copy. Native Windows and numerical checks passed; no Windows GUI or NI parity conclusion follows. Local seventeen tests, compileall and diff checks pass; actual stability remains pending CI.
