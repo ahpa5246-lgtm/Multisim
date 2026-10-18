@@ -103,3 +103,92 @@ Downloaded artifact 12125989438 and inspected exported-rc.json: 511 samples, max
 The current branch now asks the desktop capture harness to open examples/rc.sch and capture 1280x900 and 800x600 window views in addition to startup.png. It moves the window to the screen origin to avoid clipping. requested_schematic in the report is deliberately phrased as a request, not proof of successful rendering. The next run must visually inspect actual screenshots for source/resistor/capacitor connections and window density before recording success. No UI redesign or save/reload interaction is claimed.
 
 Local verification: sixteen tests pass; compileall and diff checks pass. Full X11 fixture opening/resizing remains pending remote evidence. Preserve the current PR instead of starting another independent task.
+
+
+## Loaded schematic visually confirmed; GUI persistence probe
+
+Run 39106858952 succeeded at b5aac2fe75baa17a8f2ba4b9215af845e99263ea:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39106858952
+Downloaded artifact 12129391101 and visually inspected desktop.png (1280x900) and narrow.png (800x600). Both show rc.sch with V1=5, R1=1k, C1=1u and their wires/grounds. The larger view also shows the full transient-analysis block. The narrow view clips the block to the right and its component dock consumes substantial width: narrow-window usability is not approved. No automatic fitting or redesign is being claimed.
+
+Next bounded milestone is an actual GUI Save As probe in its own stacked branch. It opens the existing circuit, requests the standard Save As shortcut, waits for the exact Enter a Document Name dialog belonging to this process, saves to a new artifact path, then asks the compiled editor to reparse/export that saved file and validate topology/values. It refuses any existing destination and never writes the source example. Missing dialogs/files fail rather than pretending persistence works. The CI screenshots and saved file become review evidence.
+
+Seventeen local unit tests pass, including refusal to overwrite an existing schematic, and Python compilation/diff checks pass. GUI execution is pending CI. In particular, Save As and Save All shortcut interaction in the pinned upstream must be observed rather than assumed. Native Windows GUI/packaging, interactive wiring, instruments and NI parity remain unverified.
+
+
+## Save As failure and distinct shortcut defaults
+
+Run 39111047781 failed at 01997dfd77c001dbc25a2b2100b9658193cbdc43:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39111047781
+Compilation, export and numerical checks completed; the real GUI probe failed because Ctrl+Shift+S did not open Enter a Document Name. Downloaded artifact 12130472858 and inspected startup.log: it contains font/file warnings but does not establish the cause by itself.
+
+Pinned qucs_init.cpp registers Save All as Ctrl+Shift+S and Save As using QKeySequence::SaveAs, whose usual Linux binding is Ctrl+Shift+S. A focused local patch gives Save All Ctrl+Alt+S while preserving the platform Save As binding. The collision is a source-backed diagnosis; the next real GUI run must confirm that this resolves the observed failure. The test is not bypassed.
+
+patches/0001-distinct-save-all-shortcut.patch preserves the pinned upstream revision and notices. scripts/apply_patches.py checks that revision, applies only reviewed patches, recognizes an already applied patch and rejects conflicts. Both Linux and Windows builds apply it before configuration. Two local applications succeeded idempotently; the expected distinct source bindings, seventeen tests, compileall and both repository/upstream diff checks passed. Actual patched compilation and GUI saving remain pending CI.
+
+The change affects the default Save All shortcut; existing customized settings may still require conflict review. No document, wiring, model, .ms14 format or solver behavior is modified. The GUI harness now captures a timeout screenshot to improve diagnosis if the expected dialog still fails to appear.
+
+
+## Save probe environment repair; Windows Git dependency
+
+Runs 39114920084 (Linux) and 39114920083 (Windows) failed at 8287b470dbd9dd1969f58812a9a8c0a0181411c2. Windows failed before compilation because native Python could not start git (WinError 2) inside the isolated MSYS2 environment. Add git explicitly to the MSYS2 install list; no checkout/patch guard is removed.
+
+Linux still did not open Save As after the distinct-shortcut patch, so the earlier collision hypothesis does not fully explain the observed failure. Downloaded artifact 12132307193 and inspected save-timeout.png and startup.log: the application remains on rc.sch without a save dialog; the log contains no explicit ambiguous-shortcut warning. Do not report the shortcut patch as having fixed this GUI failure.
+
+The existing Xvfb test ran without a window manager and only set X input focus. Qt window-scoped actions can remain inactive in that environment. Add Openbox to the isolated CI display and explicitly activate the application's top-level window before requesting Save As. This is an environment correction and remains a hypothesis pending the real run, not a successful save claim. The exact-dialog, non-overwrite and saved-topology checks remain unchanged.
+
+Local evidence: seventeen tests, compileall and diff checks pass. Next run must inspect both jobs and the actual save-dialog/saved-file evidence. No new feature work proceeds while these gates fail.
+
+
+## Windows repaired; Save As diagnosis remains open
+
+At 10e21caad65ac8c872cf3808ac213caa416007a2, native Windows run 39118628379 passed after adding Git:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39118628379
+This is native build/export evidence only, not Windows GUI or packaging acceptance.
+
+Linux run 39118628429 still failed at the expected Save As dialog despite Openbox and explicit activation:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39118628429
+Downloaded artifact 12132894414 and visually inspected save-timeout.png: the RC editor remains visible without a save dialog. Compilation, exported-device simulation and the separate numerical job passed. The window-manager hypothesis did not resolve the failure; do not count either attempted repair as verified.
+
+The same PR now captures File menu labels and actual displayed bindings before the shortcut probe, then closes the menu and retains the strict dialog/file/topology gates. This is a diagnostic increment, not a product feature or successful save. Source inspection confirms the action is registered in the shortcut manager and placed after Save All in File. A future actual menu screenshot must establish which action/binding is exposed before another shortcut change.
+
+Compared with NI's documented schematic-to-SPICE export workflow (sources above), basic export and analytic checks are established, but persistence interaction is still below the acceptance boundary. No instrument work starts while desktop CI fails. Local verification: seventeen unit tests and compileall pass; no local Qt/ngspice execution is claimed.
+
+## Actual menu identifies an unbound Save As action
+
+Run 39122703034 at 481c7dedb32919166ff0f86bcac7cdf76dfe10d2 failed the save gate:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39122703034
+Downloaded artifact 12135430595 and visually inspected file-menu.png. File is open, Save displays Ctrl+S, Save All displays Ctrl+Alt+S, and Save as displays NO shortcut. This is stronger evidence than the earlier collision/activation hypotheses: in this tested Qt platform the registered QKeySequence::SaveAs did not produce the assumed binding. The patch now explicitly registers Ctrl+Shift+S for Save As and keeps Save All distinct. No dialog/file gate is bypassed. Product saving remains unverified until the next compiled GUI test and saved-file export pass.
+
+The duplicate pull-request run 39122706561 failed earlier with no PID-visible windows and a black timeout-screen.png (artifact 12134959478); do not confuse that separate startup failure with the inspected menu run. It remains an intermittent harness concern. Both native Windows runs passed; no Windows interaction claim follows.
+
+Local validation: patch reverse-check/idempotent application succeeds; seventeen unit tests, compileall and diff checks pass. The next bounded gate remains actual GUI save and topology validation. NI comparison remains limited to the documented export workflow cited above; interactive persistence, instruments, portable Windows and .ms14 compatibility are not accepted.
+
+
+## GUI Save As and saved topology verified
+
+Run 39126560602 passed at 56a7b0cc48161bf58468dcfa3525e32f40d851f6:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39126560602
+The duplicate Desktop run 39126558063 and both native Windows jobs also passed. Downloaded artifact 12135804630 and visually inspected save-dialog.png: a real schematic save dialog with rc.sch selected and Save/Cancel controls. Inspected rc-saved.sch (1064 bytes), startup.json and saved-netlist/validation.json. The GUI created a distinct new file; compiled editor reparse/export reports pass with V1 in 0 DC 5, R1 in out 1K and C1 0 out 1U. This confirms Linux GUI Save As plus saved-file topology persistence, not interactive wiring or GUI reopening.
+
+The explicit shortcut fixed the previously observed unbound action in this tested environment. The report's generic limit text is corrected to refer to the separate roundtrip field, avoiding the contradictory old wording that denied any saving evidence. Seventeen local tests and compileall pass; solver/build/GUI success comes from the linked CI, not local execution.
+
+Critical comparison: this closes one basic desktop persistence gate. NI's documented schematic-to-SPICE workflow remains the functional reference cited above; no NI reference waveform or .ms14 acceptance exists. Narrow-window clipping remains unresolved, there is no original instrument panel, and Windows build/export still does not establish Windows interactive usability or an installer. Next bounded milestone should exercise reopening the GUI-saved copy before moving to instrument work; retain the current completed branch as a draft and use a new isolated branch for that next gate. No merge or publication occurred.
+
+
+## Persistence probe has intermittent file-creation failure
+
+At 1c56efc4fab2cfdd65950f86168c5465c815ba36, Desktop run 39130776097 passed but duplicate run 39130772510 failed with Save As did not produce a nonempty schematic:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39130772510
+The latter reached the expected save dialog; failure is after dialog discovery, unlike the earlier unbound shortcut. Successful prior evidence remains valid for that run, but persistence reliability is not accepted. Do not proceed to reopening/instruments while this gate is intermittent.
+
+The existing branch now activates the dialog explicitly before typing and captures save-filled.png after typing plus save-file-timeout.png if no file appears. This tests the dialog-focus hypothesis and supplies missing evidence of the actual typed path and any subsequent modal. It does not retry, bypass the nonempty-file check, or fabricate a saved copy. Native Windows and numerical checks passed; no Windows GUI or NI parity conclusion follows. Local seventeen tests, compileall and diff checks pass; actual stability remains pending CI.
+
+
+## Filename confirmed; dialog submission probe corrected
+
+Run 39135399825 failed at 80bb79a9b26691678025fa317bac304095dd3c4d:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39135399825
+Downloaded artifact 12139683306 and visually inspected save-filled.png and save-file-timeout.png. Both show the full correct absolute destination in the filename field. The timeout image still shows the same save dialog, not a validation/overwrite error or editor crash. Explicit dialog activation therefore did not resolve submission.
+
+The harness now uses the visible Save button's Alt+S mnemonic instead of Return, which may be consumed by the filename completer. This is a focused submission-path correction supported by the retained dialog screenshot, not proof of product failure or success. File existence and subsequent compiled-editor topology validation remain mandatory; no fallback copy or retry is added. Local seventeen unit tests, compileall and diff checks pass. Remote GUI evidence is pending. Existing NI comparison gaps and the pause on new instruments/reopening remain in force.

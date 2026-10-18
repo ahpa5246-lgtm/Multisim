@@ -44,6 +44,7 @@ def validate_rc_netlist(content):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
+    parser.add_argument('--schematic', type=Path, default=ROOT/'examples/rc.sch')
     parser.add_argument('--output', type=Path, default=Path('reports/netlist'))
     args = parser.parse_args()
     try:
@@ -52,7 +53,7 @@ def main():
         # A failed export must not accidentally validate stale output.
         netlist.unlink(missing_ok=True)
         result = subprocess.run([str(args.executable.resolve()), '--netlist', '--ngspice',
-            '-i', str(ROOT/'examples/rc.sch'), '-o', str(netlist)],
+            '-i', str(args.schematic.resolve()), '-o', str(netlist)],
             capture_output=True, text=True, check=True, timeout=30)
         (args.output/'export.log').write_text(result.stdout + result.stderr)
         report = validate_rc_netlist(netlist.read_text())

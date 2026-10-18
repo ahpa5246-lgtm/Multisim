@@ -2,6 +2,7 @@
 import argparse
 from pathlib import Path
 import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -15,6 +16,7 @@ def main():
     if not (source / 'CMakeLists.txt').is_file():
         parser.error('Initialize source: git submodule update --init --recursive')
     commands = [
+        [sys.executable, str(ROOT / "scripts/apply_patches.py")],
         ['cmake', '-S', str(source), '-B', str(ROOT / 'build'), '-DCMAKE_BUILD_TYPE=Release', f'-DCMAKE_INSTALL_PREFIX={ROOT / "install"}'],
         ['cmake', '--build', str(ROOT / 'build'), '--parallel', str(args.jobs)],
         ['cmake', '--install', str(ROOT / 'build')],
