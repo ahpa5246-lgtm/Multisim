@@ -203,3 +203,14 @@ The Alt+S submission repair now passes the existing nonempty-file and saved-topo
 New isolated stacked branch codex/gui-reopen-evidence adds one gate: after GUI Save As, start a fresh desktop process using the actual saved path and retain startup/desktop/narrow screenshots under desktop/reopened. Existing saved-file export validation remains mandatory. This uses the real compiled GUI, not a fixture copy or image mockup. A successful launch alone will not establish correct rendering; the next review must visually inspect the saved filename tab, V1/R1/C1 and connections. No reopening success is claimed yet.
 
 Comparison to NI's documented schematic export workflow remains partial: export and saved topology have evidence, but placement/wiring, interactive simulation, instruments, Windows GUI/packaging and .ms14 compatibility remain unverified. Local seventeen tests, compileall and diff checks pass. No merge, publication or new instrument work occurred.
+
+
+## Saved schematic reopening visually verified
+
+Run 39144396633 passed at 10b09714f1a136e2102c27205bc8061424783989:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39144396633
+Downloaded artifact 12143790537. Inspected reopened/startup.json: the fresh process requested reports/desktop/rc-saved.sch. Visually inspected reopened/desktop.png and reopened/narrow.png: tab reads rc-saved.sch, V1=5, R1=1k, C1=1u and their wires/grounds are rendered. The desktop view also shows TR1 Start=0, Stop=5ms, Points=501. Saved-netlist/validation.json passes all three exported components. This verifies the actual Linux chain GUI Save As -> new process opening saved copy -> rendered RC plus saved-topology export.
+
+Critical review: the 800x600 view still clips TR1 at the right edge and spends roughly 40% of width on the component dock. Reopening correctness is accepted for this fixture; narrow-window usability is not. Both Desktop runs and both Windows build/export runs passed at this commit, but that is no Windows GUI, portable installer, interactive wiring or GUI-run simulation evidence. NI numerical parity and .ms14 compatibility remain blocked by missing reference outputs/fixture. The NI export workflow cited above provides only a basic functional comparison.
+
+Local validation: seventeen unit tests, compileall and diff checks pass. No new instrument or UI feature is declared complete. The next bounded desktop task should test an actual editor simulation command and retain solver output rather than infer simulation from a visible analysis block. This completed milestone remains in draft PR #5; no merge or publication occurred.
