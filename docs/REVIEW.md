@@ -153,3 +153,13 @@ Downloaded artifact 12132894414 and visually inspected save-timeout.png: the RC 
 The same PR now captures File menu labels and actual displayed bindings before the shortcut probe, then closes the menu and retains the strict dialog/file/topology gates. This is a diagnostic increment, not a product feature or successful save. Source inspection confirms the action is registered in the shortcut manager and placed after Save All in File. A future actual menu screenshot must establish which action/binding is exposed before another shortcut change.
 
 Compared with NI's documented schematic-to-SPICE export workflow (sources above), basic export and analytic checks are established, but persistence interaction is still below the acceptance boundary. No instrument work starts while desktop CI fails. Local verification: seventeen unit tests and compileall pass; no local Qt/ngspice execution is claimed.
+
+## Actual menu identifies an unbound Save As action
+
+Run 39122703034 at 481c7dedb32919166ff0f86bcac7cdf76dfe10d2 failed the save gate:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39122703034
+Downloaded artifact 12135430595 and visually inspected file-menu.png. File is open, Save displays Ctrl+S, Save All displays Ctrl+Alt+S, and Save as displays NO shortcut. This is stronger evidence than the earlier collision/activation hypotheses: in this tested Qt platform the registered QKeySequence::SaveAs did not produce the assumed binding. The patch now explicitly registers Ctrl+Shift+S for Save As and keeps Save All distinct. No dialog/file gate is bypassed. Product saving remains unverified until the next compiled GUI test and saved-file export pass.
+
+The duplicate pull-request run 39122706561 failed earlier with no PID-visible windows and a black timeout-screen.png (artifact 12134959478); do not confuse that separate startup failure with the inspected menu run. It remains an intermittent harness concern. Both native Windows runs passed; no Windows interaction claim follows.
+
+Local validation: patch reverse-check/idempotent application succeeds; seventeen unit tests, compileall and diff checks pass. The next bounded gate remains actual GUI save and topology validation. NI comparison remains limited to the documented export workflow cited above; interactive persistence, instruments, portable Windows and .ms14 compatibility are not accepted.
