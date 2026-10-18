@@ -103,3 +103,14 @@ Downloaded artifact 12125989438 and inspected exported-rc.json: 511 samples, max
 The current branch now asks the desktop capture harness to open examples/rc.sch and capture 1280x900 and 800x600 window views in addition to startup.png. It moves the window to the screen origin to avoid clipping. requested_schematic in the report is deliberately phrased as a request, not proof of successful rendering. The next run must visually inspect actual screenshots for source/resistor/capacitor connections and window density before recording success. No UI redesign or save/reload interaction is claimed.
 
 Local verification: sixteen tests pass; compileall and diff checks pass. Full X11 fixture opening/resizing remains pending remote evidence. Preserve the current PR instead of starting another independent task.
+
+
+## Loaded schematic visually confirmed; GUI persistence probe
+
+Run 39106858952 succeeded at b5aac2fe75baa17a8f2ba4b9215af845e99263ea:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39106858952
+Downloaded artifact 12129391101 and visually inspected desktop.png (1280x900) and narrow.png (800x600). Both show rc.sch with V1=5, R1=1k, C1=1u and their wires/grounds. The larger view also shows the full transient-analysis block. The narrow view clips the block to the right and its component dock consumes substantial width: narrow-window usability is not approved. No automatic fitting or redesign is being claimed.
+
+Next bounded milestone is an actual GUI Save As probe in its own stacked branch. It opens the existing circuit, requests the standard Save As shortcut, waits for the exact Enter a Document Name dialog belonging to this process, saves to a new artifact path, then asks the compiled editor to reparse/export that saved file and validate topology/values. It refuses any existing destination and never writes the source example. Missing dialogs/files fail rather than pretending persistence works. The CI screenshots and saved file become review evidence.
+
+Seventeen local unit tests pass, including refusal to overwrite an existing schematic, and Python compilation/diff checks pass. GUI execution is pending CI. In particular, Save As and Save All shortcut interaction in the pinned upstream must be observed rather than assumed. Native Windows GUI/packaging, interactive wiring, instruments and NI parity remain unverified.

@@ -1,0 +1,43 @@
+"""Exercise Save As only on the CI-owned application and a new artifact path."""
+from pathlib import Path
+import subprocess
+import time
+
+
+def save_copy(pid: int, window: str, destination: Path):
+    destination = destination.resolve()
+    if destination.exists():
+        raise ValueError('Refusing to overwrite the roundtrip destination')
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(['xdotool', 'windowfocus', '--sync', window], check=True, timeout=5)
+    subprocess.run(['xdotool', 'key', '--clearmodifiers', 'ctrl+shift+s'], check=True, timeout=5)
+    deadline = time.monotonic() + 10
+    dialog = None
+    while time.monotonic() < deadline:
+        windows = subprocess.run(['xdotool', 'search', '--onlyvisible', '--pid', str(pid)],
+                                 capture_output=True, text=True, timeout=5)
+        for candidate in windows.stdout.split():
+            name = subprocess.run(['xdotool', 'getwindowname', candidate], capture_output=True,
+                                  text=True, timeout=5)
+            if name.returncode == 0 and name.stdout.strip() == 'Enter a Document Name':
+                dialog = candidate
+                break
+        if dialog:
+            break
+        time.sleep(.2)
+    if dialog is None:
+        raise RuntimeError('Save As did not open the expected document-name dialog')
+    subprocess.run(['import', '-window', dialog, str(destination.parent/'save-dialog.png')], check=True, timeout=10)
+    subprocess.run(['xdotool', 'windowfocus', '--sync', dialog], check=True, timeout=5)
+    subprocess.run(['xdotool', 'key', '--clearmodifiers', 'ctrl+a'], check=True, timeout=5)
+    subprocess.run(['xdotool', 'type', '--clearmodifiers', '--delay', '1', '--', str(destination)],
+                   check=True, timeout=10)
+    # Untargeted release avoids sending key-up to a destroyed dialog.
+    subprocess.run(['xdotool', 'key', 'Return'], check=True, timeout=5)
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        if destination.is_file() and destination.stat().st_size > 0:
+            return {'saved_copy': str(destination), 'bytes': destination.stat().st_size,
+                    'limits': 'GUI Save As only; validate saved topology separately'}
+        time.sleep(.2)
+    raise RuntimeError('Save As did not produce a nonempty schematic')

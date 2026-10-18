@@ -6,6 +6,10 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
+try:
+    from .desktop_save import save_copy
+except ImportError:
+    from desktop_save import save_copy
 
 
 def is_known_setup_notice(title: str) -> bool:
@@ -30,7 +34,7 @@ def acknowledge_setup_notice(window: str):
                                         output=result.stdout, stderr=result.stderr)
 
 
-def capture(executable: Path, output: Path, timeout: float = 30, schematic: Path | None = None):
+def capture(executable: Path, output: Path, timeout: float = 30, schematic: Path | None = None, save_destination: Path | None = None):
     executable = executable.resolve()
     if not executable.is_file():
         raise FileNotFoundError(executable)
@@ -84,7 +88,8 @@ def capture(executable: Path, output: Path, timeout: float = 30, schematic: Path
                         subprocess.run(['import', '-window', window, str(output / f'{label}.png')],
                                        check=True, timeout=10)
                         captures.append({'file': f'{label}.png', 'requested_size': [width, height]})
-                    report = {'status': 'captured', 'requested_schematic': str(schematic) if schematic else None,
+                    roundtrip = save_copy(process.pid, window, save_destination) if save_destination else None
+                    report = {'roundtrip': roundtrip, 'status': 'captured', 'requested_schematic': str(schematic) if schematic else None,
                               'captures': captures, 'title': title, 'geometry': values, 'acknowledged_notices': acknowledged,
                               'limits': 'X11 startup only; first-run dialogs may be present. No wiring, saving, simulation or Windows claim.'}
                     (output / 'startup.json').write_text(json.dumps(report, indent=2) + '\n')
@@ -108,10 +113,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--executable', type=Path, required=True)
     parser.add_argument('--schematic', type=Path, help='Open an existing schematic for visual inspection; does not prove successful rendering')
+    parser.add_argument('--save-copy', type=Path, help='Exercise GUI Save As to a new artifact path')
     parser.add_argument('--output', type=Path, default=Path('reports/desktop'))
     args = parser.parse_args()
     try:
-        capture(args.executable, args.output, schematic=args.schematic)
+        capture(args.executable, args.output, schematic=args.schematic, save_destination=args.save_copy)
     except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
         parser.exit(1, f'FAIL: {exc}\n')
 
