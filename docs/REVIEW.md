@@ -183,3 +183,12 @@ https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39130772510
 The latter reached the expected save dialog; failure is after dialog discovery, unlike the earlier unbound shortcut. Successful prior evidence remains valid for that run, but persistence reliability is not accepted. Do not proceed to reopening/instruments while this gate is intermittent.
 
 The existing branch now activates the dialog explicitly before typing and captures save-filled.png after typing plus save-file-timeout.png if no file appears. This tests the dialog-focus hypothesis and supplies missing evidence of the actual typed path and any subsequent modal. It does not retry, bypass the nonempty-file check, or fabricate a saved copy. Native Windows and numerical checks passed; no Windows GUI or NI parity conclusion follows. Local seventeen tests, compileall and diff checks pass; actual stability remains pending CI.
+
+
+## Filename confirmed; dialog submission probe corrected
+
+Run 39135399825 failed at 80bb79a9b26691678025fa317bac304095dd3c4d:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39135399825
+Downloaded artifact 12139683306 and visually inspected save-filled.png and save-file-timeout.png. Both show the full correct absolute destination in the filename field. The timeout image still shows the same save dialog, not a validation/overwrite error or editor crash. Explicit dialog activation therefore did not resolve submission.
+
+The harness now uses the visible Save button's Alt+S mnemonic instead of Return, which may be consumed by the filename completer. This is a focused submission-path correction supported by the retained dialog screenshot, not proof of product failure or success. File existence and subsequent compiled-editor topology validation remain mandatory; no fallback copy or retry is added. Local seventeen unit tests, compileall and diff checks pass. Remote GUI evidence is pending. Existing NI comparison gaps and the pause on new instruments/reopening remain in force.

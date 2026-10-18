@@ -45,8 +45,8 @@ def save_copy(pid: int, window: str, destination: Path):
                    check=True, timeout=10)
     subprocess.run(['import', '-window', dialog, str(destination.parent/'save-filled.png')],
                    check=True, timeout=10)
-    # Untargeted release avoids sending key-up to a destroyed dialog.
-    subprocess.run(['xdotool', 'key', 'Return'], check=True, timeout=5)
+    # The filename completer can consume Return; use the visible Save button mnemonic.
+    subprocess.run(['xdotool', 'key', '--clearmodifiers', 'alt+s'], check=True, timeout=5)
     deadline = time.monotonic() + 10
     while time.monotonic() < deadline:
         if destination.is_file() and destination.stat().st_size > 0:
