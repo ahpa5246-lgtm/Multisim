@@ -28,6 +28,10 @@ The second command requires real ngspice and fails if it is missing. It compares
 
 See [architecture](docs/DESIGN.md), [implementation plan](docs/PLAN.md), [parity matrix](docs/PARITY.md), and [review evidence](docs/REVIEW.md).
 
+## Local upstream patches
+
+Builds apply the reviewed files in `patches/` to the pinned Qucs-S revision. Save All uses Ctrl+Alt+S to avoid colliding with platform Save As. `python3 scripts/apply_patches.py` is idempotent and fails on an unreviewed upstream revision or patch conflict. The source submodule remains pinned; local patch application makes its working tree modified by design.
+
 ## Licensing
 
 Our additions are GPL-2.0-or-later; see LICENSE. Qucs-S retains its original copyright notices and license in upstream/qucs-s/COPYING. Its nested projects retain their own licenses. No code from SimulIDE, Kirho, or the EW decoder has been merged. Preserve notices and provide corresponding source when distributing binaries.

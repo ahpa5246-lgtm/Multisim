@@ -21,6 +21,8 @@ jobs:
           update: true
           install: bison flex dos2unix
           pacboy: cmake:p gcc:p qt6-base:p qt6-tools:p qt6-svg:p qt6-charts:p ninja:p python:p gperf:p
+      - name: Apply reviewed upstream patches
+        run: python scripts/apply_patches.py
       - name: Configure pinned desktop source
         run: cmake -S upstream/qucs-s -B build-windows -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PWD/install-windows"
       - name: Build and install

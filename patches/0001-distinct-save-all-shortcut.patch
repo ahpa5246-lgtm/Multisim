@@ -1,0 +1,11 @@
+--- a/qucs/qucs_init.cpp
++++ b/qucs/qucs_init.cpp
+@@ -1340,7 +1340,7 @@
+                       QKeySequence::Save);
+ 
+   mgr.registerCommand("File.SaveAll", "File", "Save All", fileSaveAll,
+-                      QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
++                      QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_S));
+ 
+   mgr.registerCommand("File.SaveAs", "File", "Save as", fileSaveAs,
+                       QKeySequence::SaveAs);

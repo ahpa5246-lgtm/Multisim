@@ -114,3 +114,16 @@ Downloaded artifact 12129391101 and visually inspected desktop.png (1280x900) an
 Next bounded milestone is an actual GUI Save As probe in its own stacked branch. It opens the existing circuit, requests the standard Save As shortcut, waits for the exact Enter a Document Name dialog belonging to this process, saves to a new artifact path, then asks the compiled editor to reparse/export that saved file and validate topology/values. It refuses any existing destination and never writes the source example. Missing dialogs/files fail rather than pretending persistence works. The CI screenshots and saved file become review evidence.
 
 Seventeen local unit tests pass, including refusal to overwrite an existing schematic, and Python compilation/diff checks pass. GUI execution is pending CI. In particular, Save As and Save All shortcut interaction in the pinned upstream must be observed rather than assumed. Native Windows GUI/packaging, interactive wiring, instruments and NI parity remain unverified.
+
+
+## Save As failure and distinct shortcut defaults
+
+Run 39111047781 failed at 01997dfd77c001dbc25a2b2100b9658193cbdc43:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39111047781
+Compilation, export and numerical checks completed; the real GUI probe failed because Ctrl+Shift+S did not open Enter a Document Name. Downloaded artifact 12130472858 and inspected startup.log: it contains font/file warnings but does not establish the cause by itself.
+
+Pinned qucs_init.cpp registers Save All as Ctrl+Shift+S and Save As using QKeySequence::SaveAs, whose usual Linux binding is Ctrl+Shift+S. A focused local patch gives Save All Ctrl+Alt+S while preserving the platform Save As binding. The collision is a source-backed diagnosis; the next real GUI run must confirm that this resolves the observed failure. The test is not bypassed.
+
+patches/0001-distinct-save-all-shortcut.patch preserves the pinned upstream revision and notices. scripts/apply_patches.py checks that revision, applies only reviewed patches, recognizes an already applied patch and rejects conflicts. Both Linux and Windows builds apply it before configuration. Two local applications succeeded idempotently; the expected distinct source bindings, seventeen tests, compileall and both repository/upstream diff checks passed. Actual patched compilation and GUI saving remain pending CI.
+
+The change affects the default Save All shortcut; existing customized settings may still require conflict review. No document, wiring, model, .ms14 format or solver behavior is modified. The GUI harness now captures a timeout screenshot to improve diagnosis if the expected dialog still fails to appear.

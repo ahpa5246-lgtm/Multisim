@@ -26,6 +26,7 @@ def save_copy(pid: int, window: str, destination: Path):
             break
         time.sleep(.2)
     if dialog is None:
+        subprocess.run(['import', '-window', 'root', str(destination.parent/'save-timeout.png')], timeout=10)
         raise RuntimeError('Save As did not open the expected document-name dialog')
     subprocess.run(['import', '-window', dialog, str(destination.parent/'save-dialog.png')], check=True, timeout=10)
     subprocess.run(['xdotool', 'windowfocus', '--sync', dialog], check=True, timeout=5)
