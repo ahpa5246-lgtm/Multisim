@@ -192,3 +192,14 @@ https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39135399825
 Downloaded artifact 12139683306 and visually inspected save-filled.png and save-file-timeout.png. Both show the full correct absolute destination in the filename field. The timeout image still shows the same save dialog, not a validation/overwrite error or editor crash. Explicit dialog activation therefore did not resolve submission.
 
 The harness now uses the visible Save button's Alt+S mnemonic instead of Return, which may be consumed by the filename completer. This is a focused submission-path correction supported by the retained dialog screenshot, not proof of product failure or success. File existence and subsequent compiled-editor topology validation remain mandatory; no fallback copy or retry is added. Local seventeen unit tests, compileall and diff checks pass. Remote GUI evidence is pending. Existing NI comparison gaps and the pause on new instruments/reopening remain in force.
+
+
+## Submission repair passes; fresh-process reopening gate
+
+At 0ee26c8783eb13622369bfa39e67bc4178daee8e both Desktop runs 39140940294 and 39140937752 passed, along with both native Windows runs:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39140940294
+The Alt+S submission repair now passes the existing nonempty-file and saved-topology checks in these runs; this is bounded regression evidence, not a universal reliability claim.
+
+New isolated stacked branch codex/gui-reopen-evidence adds one gate: after GUI Save As, start a fresh desktop process using the actual saved path and retain startup/desktop/narrow screenshots under desktop/reopened. Existing saved-file export validation remains mandatory. This uses the real compiled GUI, not a fixture copy or image mockup. A successful launch alone will not establish correct rendering; the next review must visually inspect the saved filename tab, V1/R1/C1 and connections. No reopening success is claimed yet.
+
+Comparison to NI's documented schematic export workflow remains partial: export and saved topology have evidence, but placement/wiring, interactive simulation, instruments, Windows GUI/packaging and .ms14 compatibility remain unverified. Local seventeen tests, compileall and diff checks pass. No merge, publication or new instrument work occurred.
