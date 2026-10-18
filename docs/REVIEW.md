@@ -250,3 +250,14 @@ Both Desktop and Windows workflows passed at 674863a0c25f13136b7b2c62d20d52926f2
 Nineteen local tests pass, including seven corrupted-dataset cases. This contract is deliberately fixture-specific: default DC initialization gives a steady 5V capacitor, not a charging exponential. The analytic charging test remains separate. It adds no instrument UI, plotting, Windows interaction or .ms14 support, and cannot substitute for NI reference measurements. Remote CI acceptance remains pending. Screenshot repaint quality remains a separate unresolved visual gap; this change does not label it fixed.
 
 The previous temporary downloaded dataset is absent in this local session; invoking the CLI on that missing path failed explicitly. No local real-artifact pass is claimed for the new validator; CI must exercise it on fresh output.
+
+
+## Actual GUI dataset contract verified in CI
+
+Run 39171580577 passed at 20a8487e52eb94910cb12ffa88c6d4f8933982ad:
+https://github.com/ahpa5246-lgtm/Multisim/actions/runs/39171580577
+Both Desktop runs and both native Windows build/export runs passed. Downloaded artifact 12152804171 and inspected gui-dataset.json: status pass, 508 samples, maximum errors 0V for tran.v(in) and tran.v(out) at stored precision. Re-ran scripts/verify_gui_dataset.py locally on that actual downloaded rc-saved.dat.ngspice; it passed with the same values. Nineteen unit tests, compileall and diff checks also pass.
+
+Acceptance is narrow and explicit: the actual saved/reopened circuit produces a complete time vector and steady 5V nodes through GUI F2 with DC initialization. It does not prove zero-charge startup, plotting, instrument interaction, arbitrary circuits or numerical parity with NI. The separate charging regression uses explicit uic. The ledger now distinguishes those two initial-condition contracts.
+
+Critical remaining gaps: narrow view clips the analysis block, simulator screenshot can race repaint, no user-facing original instruments have been implemented, placement/wiring is untested, and Windows GUI/standalone packaging and real .ms14 compatibility remain unverified. Next bounded step should improve finished-result visual evidence or test interactive plotting, retaining real vectors; no decorative instrument panel should be accepted as functional progress. This milestone remains draft PR #7; no merge or publication occurred.

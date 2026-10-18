@@ -18,6 +18,7 @@ Spec: docs/DESIGN.md.
 - [x] Exercise GUI Save As and validate the saved circuit through editor export (run 39126560602).
 - [x] Visually inspect a fresh GUI process reopening the GUI-saved RC copy (run 39144396633).
 - [x] Trigger F2 in reopened Linux GUI and inspect a newly produced dataset (run 39162268690; DC-initialized 5V baseline only).
+- [x] Validate actual GUI dataset numerically in CI (run 39171580577; DC-initialized baseline).
 - [ ] Build Windows package and perform editor wiring/save/load/run interaction test.
 
 Review focus: missing dependency must fail; nonfinite data must fail; inadequate time coverage must fail; file paths containing spaces must work; subprocess failure must propagate.
