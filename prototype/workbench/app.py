@@ -495,8 +495,107 @@ class Workbench(tk.Tk):
         else:messagebox.showinfo('Voltage Probe','Run the simulation to inspect node voltages.')
     def not_ready(self):messagebox.showinfo('Not implemented','This instrument is not functional in this prototype.')
     def component_browser(self):
-        text='Available: Resistor, Capacitor, Inductor (export only), DC voltage source, Ground.\nAlso drawn: Diode, LED, Switch (not supported in the local transient solver).\n\nSelect a component in the upper toolbar; click canvas to place.'
-        messagebox.showinfo('Select a Component',text)
+        """Actual searchable component-picker window, styled after legacy CAD dialogs."""
+        win = tk.Toplevel(self)
+        win.title('Select a Component — Open Circuit Workbench')
+        win.geometry('790x530')
+        win.minsize(650, 430)
+        win.transient(self)
+        win.configure(background=BOARD)
+        win.grab_set()
+        top = ttk.Frame(win)
+        top.pack(fill='x', padx=12, pady=(13, 7))
+        ttk.Label(top, text='Database:').pack(side='left', padx=(0, 9))
+        db = ttk.Combobox(top, values=['Master Database (Open Circuit Workbench)'], state='readonly', width=34)
+        db.current(0); db.pack(side='left')
+        ttk.Label(top, text='Search:').pack(side='left', padx=(22, 8))
+        query = tk.StringVar()
+        search = ttk.Entry(top, textvariable=query)
+        search.pack(side='left', fill='x', expand=True)
+        body = ttk.PanedWindow(win, orient=tk.HORIZONTAL)
+        body.pack(fill='both', expand=True, padx=12, pady=(0, 8))
+        left = ttk.Frame(body); body.add(left, weight=1)
+        ttk.Label(left, text='Group / Family', font=('Segoe UI',9,'bold')).pack(anchor='w', pady=5)
+        groups = tk.Listbox(left, exportselection=False, height=10, font=('Segoe UI',10),
+                            bg='white', relief='groove')
+        groups.pack(fill='both', expand=True)
+        for name in ('All Components', 'Basic', 'Sources', 'Diodes', 'Switches'):
+            groups.insert('end', name)
+        groups.selection_set(0)
+        mid = ttk.Frame(body); body.add(mid, weight=3)
+        ttk.Label(mid, text='Component', font=('Segoe UI',9,'bold')).pack(anchor='w', pady=5)
+        tree = ttk.Treeview(mid, columns=('type','default','support'), show='headings', height=10,
+                            selectmode='browse')
+        tree.heading('type',text='Component');tree.column('type',width=140)
+        tree.heading('default',text='Default');tree.column('default',width=85)
+        tree.heading('support',text='Simulation');tree.column('support',width=100)
+        tree.pack(fill='both',expand=True)
+        detail = ttk.Frame(win)
+        detail.pack(fill='x', padx=12, pady=(0,5))
+        ttk.Label(detail, text='Symbol preview:', font=('Segoe UI',9,'bold')).pack(anchor='w')
+        previews = ttk.Frame(detail); previews.pack(fill='x')
+        symbol = tk.Canvas(previews, width=125, height=92, bg='white', highlightthickness=1,
+                           highlightbackground=OUTLINE)
+        symbol.pack(side='left', padx=(0,12))
+        description = tk.StringVar(value='Select a component to preview its symbol and properties.')
+        ttk.Label(previews, textvariable=description, wraplength=550, justify='left').pack(side='left',fill='x',expand=True)
+        catalog = [
+            ('R','Resistor','Basic','Linear'), ('C','Capacitor','Basic','Linear'),
+            ('L','Inductor','Basic','SPICE export only'), ('V','DC Voltage Source','Sources','Linear'),
+            ('GND','Ground','Sources','Reference'), ('D','Diode','Diodes','Symbol only'),
+            ('LED','Light-Emitting Diode','Diodes','Symbol only'),('SW','Switch','Switches','Symbol only')]
+        by_kind = {item[0]: item for item in catalog}
+        def redraw():
+            group = groups.get(groups.curselection()[0]) if groups.curselection() else 'All Components'
+            needle = query.get().lower().strip()
+            old_selection=tree.selection()[0] if tree.selection() else None
+            tree.delete(*tree.get_children())
+            for kind,label,family,support in catalog:
+                if (group in ('All Components',family)) and (not needle or needle in (label+' '+kind).lower()):
+                    tree.insert('','end',iid=kind,values=(label,DEFAULTS[kind][0],support))
+            if old_selection and tree.exists(old_selection): tree.selection_set(old_selection)
+            elif tree.get_children(): tree.selection_set(tree.get_children()[0])
+            preview()
+        def preview(event=None):
+            symbol.delete('all')
+            chosen=tree.selection()
+            if not chosen:
+                description.set('No matching components.')
+                return
+            kind=chosen[0]
+            name,group,support=by_kind[kind][1:]
+            description.set(f'{name} ({kind})\nGroup: {group}     Default value: {DEFAULTS[kind][0] or "—"}\nStatus: {support}\nSelect Place, then click on the schematic grid.')
+            symbol.create_line(12,46,112,46,fill=BLUE,width=2)
+            if kind=='R':symbol.create_rectangle(39,36,85,56,outline=BLUE,fill='white',width=2)
+            elif kind=='C':
+                symbol.create_rectangle(56,23,59,69,outline=BLUE,fill=BLUE)
+                symbol.create_rectangle(66,23,69,69,outline=BLUE,fill=BLUE)
+                symbol.create_rectangle(58,35,67,57,fill='white',outline='white')
+            elif kind=='V':
+                symbol.create_oval(42,18,82,74,outline=BLUE,fill='white',width=2)
+                symbol.create_text(62,40,text='+',fill=BLUE,font=('Consolas',14,'bold'))
+            elif kind=='GND':
+                symbol.delete('all');symbol.create_line(62,14,62,44,fill=BLUE,width=2)
+                for y,w in [(46,34),(53,24),(60,12)]:symbol.create_line(62-w//2,y,62+w//2,y,fill=BLUE,width=2)
+            elif kind=='L':
+                for xx in (44,54,64,74):symbol.create_arc(xx,35,xx+14,59,start=0,extent=180,style='arc',outline=BLUE,width=2)
+            elif kind in ('D','LED'):
+                symbol.create_polygon(43,29,43,63,80,46,outline=BLUE,fill='white',width=2)
+                symbol.create_line(80,28,80,64,fill=BLUE,width=2)
+            elif kind=='SW':
+                symbol.create_line(43,46,80,29,fill=BLUE,width=2)
+        def choose(event=None):
+            selected=tree.selection()
+            if selected:
+                self.set_mode(selected[0]);win.grab_release();win.destroy()
+        tree.bind('<<TreeviewSelect>>',preview)
+        tree.bind('<Double-1>',choose)
+        groups.bind('<<ListboxSelect>>',lambda e:redraw())
+        query.trace_add('write',lambda *_:redraw())
+        actions=ttk.Frame(win);actions.pack(side='bottom',fill='x',padx=12,pady=(0,10))
+        ttk.Button(actions,text='Cancel',command=win.destroy).pack(side='right',padx=(7,0))
+        ttk.Button(actions,text='Place',command=choose).pack(side='right')
+        redraw();search.focus_set()
     def project_info(self):
         messagebox.showinfo('Project Information',f'{self.doc.title}\nComponents: {len(self.doc.parts)}\nWires: {len(self.doc.wires)}\nSave format: .ocw.json\nNo NI Multisim compatibility is claimed.')
     def reset_workspace(self):self.fit();self.status('Workspace reset')
