@@ -1,0 +1,27 @@
+name: Workbench Python validation
+on:
+  push:
+    paths:
+      - 'prototype/**'
+      - '.github/workflows/workbench-python.yml'
+  pull_request:
+    paths:
+      - 'prototype/**'
+      - '.github/workflows/workbench-python.yml'
+permissions:
+  contents: read
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: prototype
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile Python sources
+        run: python -m compileall -q workbench
+      - name: Run circuit solver and serialization tests
+        run: python -m unittest discover -s tests -v
