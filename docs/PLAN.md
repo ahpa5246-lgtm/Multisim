@@ -9,7 +9,9 @@ Spec: docs/DESIGN.md.
 - [x] Add RC fixture, analytic validator, and tests for numerical errors, NaN, missing samples and solver absence.
 - [x] Add CI jobs for unit tests, real ngspice and Linux GUI compilation.
 - [x] Document precise parity gaps and review evidence.
-- [ ] Obtain successful remote build and solver logs.
+- [x] Obtain successful remote build and solver logs (run 39078237801).
+- [x] Capture and visually inspect actual Linux startup (run 39089285681, artifact 12122511783); startup alone is not interaction validation.
+- [ ] Export RC schematic with the compiled editor and validate values/connectivity in CI.
 - [ ] Build Windows package and perform editor wiring/save/load/run interaction test.
 
 Review focus: missing dependency must fail; nonfinite data must fail; inadequate time coverage must fail; file paths containing spaces must work; subprocess failure must propagate.
