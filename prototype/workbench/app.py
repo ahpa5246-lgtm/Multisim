@@ -11,12 +11,14 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from pathlib import Path
 from .toolbar import ToolButton
+from .instruments import Instruments
+from .spice import Analysis, source_value, compile_deck
 from .core import Document, Part, PINS, DEFAULTS, GRID, numeric, snap, simulate
 
 PAPER = '#ffffff'; INK = '#202020'; BLUE = '#163fa0'; RED = '#bf2028'
 GREY = '#606060'; BOARD = '#ededed'; OUTLINE = '#b1b1b1'; PALE = '#f5f5f5'
 
-class Workbench(tk.Tk):
+class Workbench(Instruments, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title('Open Circuit Workbench — Design1')
@@ -29,6 +31,8 @@ class Workbench(tk.Tk):
         self.clipboard = None
         self.scale_factor = 1.0
         self.timeline = None; self.last_nets = None
+        self.result=None;self.analysis=Analysis();self._job=None;self.ngspice_path=None
+        self.protocol("WM_DELETE_WINDOW",self.close_workbench)
         self._make_style(); self._make_menu(); self._make_layout(); self._keys()
         self.example()
 
@@ -48,14 +52,14 @@ class Workbench(tk.Tk):
     def _make_menu(self):
         menu=tk.Menu(self)
         items={
-            'File':[('New',self.new),('Open...',self.open),('Save',self.save),('Save As...',self.save_as),('Export SPICE Netlist...',self.export_netlist),None,('Exit',self.destroy)],
+            'File':[('New',self.new),('Open...',self.open),('Save',self.save),('Save As...',self.save_as),('Export SPICE Netlist...',self.export_netlist),None,('Exit',self.close_workbench)],
             'Edit':[('Undo',self.undo),('Redo',self.redo),None,('Delete Selected',self.delete_selected),('Rotate Selected',self.rotate),('Properties',self.properties)],
             'View':[('Zoom In',lambda:self.zoom(1.25)),('Zoom Out',lambda:self.zoom(.8)),('Zoom to Fit',self.fit),('Show Grid',self.toggle_grid)],
             'Place':[('Resistor',lambda:self.set_mode('R')),('Capacitor',lambda:self.set_mode('C')),('Inductor',lambda:self.set_mode('L')),('DC Voltage',lambda:self.set_mode('V')),('Ground',lambda:self.set_mode('GND')),('Diode',lambda:self.set_mode('D')),('LED',lambda:self.set_mode('LED')),('Switch',lambda:self.set_mode('SW')),None,('Wire',lambda:self.set_mode('wire'))],
-            'Simulate':[('Run Transient',self.run),('Stop',self.stop),('Oscilloscope',self.scope),None,('Load RC Example',self.example)],
+            'Simulate':[('Run Transient',self.run),('DC Operating Point',self.dc_analysis),('AC Sweep / Bode',self.bode),('Analysis Settings...',self.analysis_settings),('Stop',self.stop),None,('Oscilloscope',self.scope),('Multimeter',self.multimeter),('Function Generator',self.generator),('Logic Traces',self.logic),('Voltage Spectrum',self.spectrum_panel),('Export Simulation Data...',self.export_results),None,('Load RC Example',self.example)],
             'Tools':[('Components Browser',self.component_browser),('Project Information',self.project_info)],
             'Reports':[('Netlist Preview',self.preview_netlist)],
-            'Options':[('Grid Snap',self.toggle_snap)],
+            'Options':[('Grid Snap',self.toggle_snap),('Locate ngspice executable...',self.locate_ngspice)],
             'Window':[('Reset Workspace',self.reset_workspace)],
             'Help':[('About',self.about),('Keyboard Shortcuts',self.shortcuts)]
         }
@@ -102,7 +106,7 @@ class Workbench(tk.Tk):
         self._separator(second)
         self._tool(second,'catalog',self.component_browser,'Select a component')
         for kind,label in [('V','DC voltage source'),('GND','Ground'),('R','Resistor'),('C','Capacitor'),
-                           ('L','Inductor — export only'),('D','Diode — symbol only'),('LED','LED — symbol only'),('SW','Switch — symbol only')]:
+                           ('L','Inductor'),('D','Diode — generic electrical model'),('LED','LED — generic electrical model'),('SW','Static open/closed switch')]:
             self._tool(second,kind,lambda k=kind:self.set_mode(k),label,key=kind)
         self._separator(second)
         self._tool(second,'rotate',self.rotate,'Rotate selected (Ctrl+R)')
@@ -156,8 +160,8 @@ class Workbench(tk.Tk):
                 t.pack(fill='both',expand=True);t.config(state='disabled');setattr(self,'panel_'+label.lower(),t)
         right=tk.Frame(body,width=36,bg='#f0f0f0',bd=1,relief='raised');body.add(right,weight=0)
         for icon,cmd,label,disabled in [('meter',self.multimeter,'Multimeter: simulated DC node readings',False),
-                ('scope',self.scope,'Oscilloscope: transient node voltages',False),('generator',self.generator,'Function generator — unavailable',True),
-                ('bode',self.not_ready,'Bode plotter — unavailable',True),('logic',self.not_ready,'Logic analyzer — unavailable',True),
+                ('scope',self.scope,'Oscilloscope: transient node voltages',False),('generator',self.generator,'Function generator: configure voltage source',False),
+                ('bode',self.bode,'Bode: AC small-signal analysis',False),('logic',self.logic,'Logic traces: threshold sampled analog voltages',False),('spectrum',self.spectrum_panel,'Sampled voltage spectrum',False),
                 ('probe',self.probe,'Read simulated node voltages',False)]:self._tool(right,icon,cmd,label,disabled=disabled,vertical=True)
         bottom=tk.Frame(self,bg='#f0f0f0',bd=1,relief='sunken');bottom.pack(side='bottom',fill='x',before=body)
         tk.Label(bottom,textvariable=self.hint,bg='#f0f0f0',fg='#333',anchor='w',font=('Segoe UI',9)).pack(side='left',padx=6,pady=3)
@@ -212,14 +216,16 @@ class Workbench(tk.Tk):
         widget.config(state='normal'); widget.delete('1.0','end'); widget.insert('end',text); widget.config(state='disabled')
 
     def checkpoint(self):
-        self.timeline=None  # prevent stale scope readings after schematic edits
+        self.timeline=None;self.result=None
+        if self._job is not None:self.stop()  # discard stale results after an edit
         self.history.append(self.doc.to_dict())
         if len(self.history)>60: self.history.pop(0)
         self.future.clear()
 
     def restore(self,data):
         from .core import Part,Wire
-        self.timeline=None
+        self.timeline=None;self.result=None
+        if self._job is not None:self.stop()
         self.doc=Document(data['title'], [Part(**p) for p in data['parts']], [Wire(tuple(w['a']),tuple(w['b'])) for w in data['wires']])
         self.selected=None; self.render()
 
@@ -348,7 +354,7 @@ class Workbench(tk.Tk):
         value=simpledialog.askstring('Component Properties',f'{p.id} — {p.kind}\nValue (use suffixes: k, m, u, n):',initialvalue=p.value,parent=self)
         if value is None:return
         if p.kind in ('R','C','L','V'):
-            try: numeric(value)
+            try: source_value(value) if p.kind=='V' else numeric(value)
             except ValueError as e:messagebox.showerror('Invalid component value',str(e));return
         self.checkpoint();p.value=value;self.render()
     def _line(self,pts,**kw):
@@ -392,7 +398,7 @@ class Workbench(tk.Tk):
             if kind=='LED':line([(0,-19),(13,-32)]);line([(10,-20),(23,-33)])
         elif kind=='SW':
             line([(-40,0),(-22,0)]);line([(22,0),(40,0)])
-            line([(-22,0),(12,-17)])
+            line([(-22,0),(22,0) if p.value.lower()=='closed' else (12,-17)])
             for xp,yp in [(-22,0),(22,0)]:
                 a1,b1=self.xp(tf(xp-2,yp-2));a2,b2=self.xp(tf(xp+2,yp+2))
                 self.canvas.create_oval(a1,b1,a2,b2,fill=BLUE,outline=BLUE)
@@ -441,6 +447,7 @@ class Workbench(tk.Tk):
     def new(self):
         if self.doc.parts and not messagebox.askyesno('New design','Start a new empty design? Unsaved changes will be lost.'):
             return
+        self.result=None;self.timeline=None;self.stop()
         self.doc=Document();self.filepath=None;self.selected=None
         self.history.clear();self.future.clear();self.render();self.status('New design')
     def open(self):
@@ -448,6 +455,7 @@ class Workbench(tk.Tk):
         if not path:return
         try:self.doc=Document.load(path)
         except (OSError,ValueError,TypeError,KeyError) as e:messagebox.showerror('Cannot open',str(e));return
+        self.result=None;self.timeline=None;self.stop()
         self.filepath=path;self.selected=None;self.history.clear();self.future.clear();self.render();self.status('Opened '+path)
     def save(self):
         if not self.filepath:return self.save_as()
@@ -457,16 +465,17 @@ class Workbench(tk.Tk):
         path=filedialog.asksaveasfilename(title='Save project',defaultextension='.ocw.json',filetypes=[('Workbench project','*.ocw.json')])
         if path:self.filepath=path;self.save()
     def export_netlist(self):
-        try:net=self.doc.netlist()
+        try:net=compile_deck(self.doc,self.analysis)[0]
         except ValueError as e:messagebox.showerror('Netlist error',str(e));return
         path=filedialog.asksaveasfilename(title='Export SPICE',defaultextension='.cir',filetypes=[('SPICE circuit','*.cir')])
         if path:
             Path(path).write_text(net,encoding='utf-8');self.status('Exported '+path)
     def preview_netlist(self):
-        try:contents=self.doc.netlist()
+        try:contents=compile_deck(self.doc,self.analysis)[0]
         except ValueError as e:contents=str(e)
         self.write_panel('results',contents);self.report_tabs.select(0)
     def example(self):
+        self.result=None;self.stop()
         self.doc=Document('RC Charging Circuit')
         v=self.doc.add('V',300,320,'5')
         r=self.doc.add('R',480,240,'1k')
@@ -486,57 +495,8 @@ class Workbench(tk.Tk):
         for wire in self.doc.wires:
             wire.a=(wire.a[0],wire.a[1]-80);wire.b=(wire.b[0],wire.b[1]-80)
         self.filepath=None;self.history.clear();self.future.clear();self.selected=None;self.timeline=None
-        self.render();self.write_panel('results','Example: a 5 V DC source charges a 1 µF capacitor through 1 kΩ.\nClick ▶ Run to solve a real 240-step transient.\nDouble-click a part to change its value.')
+        self.render();self.write_panel('results','Example: a 5 V DC source charges a 1 µF capacitor through 1 kΩ.\nClick Run to solve with ngspice. Use Simulate for DC/AC analysis.\nDouble-click a part to change its value.')
         self.status('Ready — sample RC circuit loaded')
-    def run(self):
-        try:self.timeline=simulate(self.doc);self.last_nets=self.timeline[2]
-        except ValueError as e:
-            self.timeline=None;messagebox.showerror('Simulation error',str(e));self.write_panel('simulation','Error: '+str(e));return
-        times,history,nets=self.timeline
-        summary=f'Transient solved: {len(times)} samples, duration={times[-1]*1e3:.1f} ms\n'
-        summary+='\n'.join(f'V({key}) = {series[-1]:.5f} V' for key,series in history.items() if key!='0')
-        self.write_panel('results',summary);self.write_panel('simulation','Educational MNA / backward-Euler solver — DC voltage sources, resistors and capacitors.\nFor advanced circuits use the existing Qucs-S / ngspice engine.');self.report_tabs.select(0)
-        self.status('Simulation completed');self.scope()
-    def stop(self):self.status('Simulation stopped (synchronous solver is already idle)')
-    def scope(self):
-        if self.timeline is None:
-            messagebox.showinfo('Oscilloscope','Run a valid circuit first to display measured node voltages.');return
-        t,h,nets=self.timeline
-        dialog=tk.Toplevel(self);dialog.title('XSC1 — Virtual Oscilloscope  |  Transient Analysis')
-        dialog.geometry('920x545');dialog.configure(bg='#ccd1d6')
-        toolbar=ttk.Frame(dialog);toolbar.pack(fill='x')
-        ttk.Label(toolbar,text='  XSC1   Oscilloscope       Timebase: '+f'{t[-1]*1e3:.1f} ms'+'      Coupling: DC',font=('Segoe UI',10,'bold')).pack(side='left',pady=10)
-        area=tk.Canvas(dialog,bg='#12191f',highlightthickness=3,highlightbackground='#81919d',width=880,height=395)
-        area.pack(fill='both',expand=True,padx=14,pady=5)
-        dialog.update_idletasks(); w=area.winfo_width();hgt=area.winfo_height();margin=45
-        for k in range(11):
-            x=margin+(w-2*margin)*k/10
-            area.create_line(x,22,x,hgt-30,fill='#223943',dash=(2,4))
-            area.create_text(x,hgt-15,text=f'{t[-1]*1000*k/10:.1f}',fill='#a1acb7',font=('Consolas',8))
-        vals=[v for name,series in h.items() if name!='0' for v in series]
-        lo=min(0,min(vals or [0]));hi=max(1,max(vals or [5]));span=hi-lo
-        for k in range(7):
-            y=22+(hgt-52)*k/6; area.create_line(margin,y,w-margin,y,fill='#223943',dash=(2,4))
-            area.create_text(27,y,text=f'{hi-span*k/6:.1f}',fill='#a1acb7',font=('Consolas',8))
-        colors=['#ffe45e','#00e4c3','#fa638e','#7fb5ff','#d7e67a']
-        for i,(node,series) in enumerate((q for q in h.items() if q[0]!='0')):
-            points=[]
-            for j,v in enumerate(series):
-                points.extend([margin+(w-2*margin)*j/(len(series)-1),22+(hi-v)/span*(hgt-52)])
-            area.create_line(*points,fill=colors[i%len(colors)],width=2.2,smooth=False)
-            area.create_text(75+i*116,12,text=f'CH{i+1}: V({node})',fill=colors[i%len(colors)],font=('Consolas',10,'bold'))
-        ttk.Label(dialog,text='  Time (ms)                       Simulation readings — educational transient engine, not an NI instrument emulator',foreground=GREY).pack(anchor='w',padx=20,pady=8)
-    def multimeter(self):
-        if not self.timeline:
-            messagebox.showinfo('XMM1 — Multimeter','Run a circuit to read DC node voltages.');return
-        _,h,_=self.timeline
-        text='\n'.join(f'Node {n}:  {values[-1]:.5f} V DC' for n,values in h.items() if n!='0')
-        messagebox.showinfo('XMM1 — Virtual Multimeter',text or 'No nodes measured')
-    def generator(self):messagebox.showinfo('Function Generator','The function generator is planned, but not implemented. Do not rely on its outputs yet.')
-    def probe(self):
-        if self.timeline:self.multimeter()
-        else:messagebox.showinfo('Voltage Probe','Run the simulation to inspect node voltages.')
-    def not_ready(self):messagebox.showinfo('Not implemented','This instrument is not functional in this prototype.')
     def component_browser(self):
         """Actual searchable component-picker window, styled after legacy CAD dialogs."""
         win = tk.Toplevel(self)
@@ -583,10 +543,10 @@ class Workbench(tk.Tk):
         description = tk.StringVar(value='Select a component to preview its symbol and properties.')
         ttk.Label(previews, textvariable=description, wraplength=550, justify='left').pack(side='left',fill='x',expand=True)
         catalog = [
-            ('R','Resistor','Basic','Linear'), ('C','Capacitor','Basic','Linear'),
-            ('L','Inductor','Basic','SPICE export only'), ('V','DC Voltage Source','Sources','Linear'),
-            ('GND','Ground','Sources','Reference'), ('D','Diode','Diodes','Symbol only'),
-            ('LED','Light-Emitting Diode','Diodes','Symbol only'),('SW','Switch','Switches','Symbol only')]
+            ('R','Resistor','Basic','ngspice'), ('C','Capacitor','Basic','ngspice'),
+            ('L','Inductor','Basic','ngspice'), ('V','DC Voltage Source','Sources','ngspice'),
+            ('GND','Ground','Sources','Reference'), ('D','Diode','Diodes','Generic model'),
+            ('LED','Light-Emitting Diode','Diodes','Generic model'),('SW','Switch','Switches','Static resistor model')]
         by_kind = {item[0]: item for item in catalog}
         def redraw():
             group = groups.get(groups.curselection()[0]) if groups.curselection() else 'All Components'

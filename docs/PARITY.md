@@ -28,3 +28,7 @@ Record NI version, upstream SHA, ngspice version, circuit/model files, supply va
 | Separate ngspice RC baseline | Verified | ngspice 42 raw data/log/report in `docs/evidence/rc-ngspice42` |
 | Windows rendering / installer | Untested | Linux cannot establish Windows validation |
 | Qucs-S GUI build | Untested locally | Upstream preserved; no build claimed |
+
+## Current superseding status — ngspice integration
+
+The Python UI now uses real ngspice for its Run/DC/AC actions. Its earlier educational-only solver status above is historical. Scope/generator/meter/Bode/spectrum/threshold traces are **partial implementations**, with exact limits in `docs/OPEN_SOURCE_AUDIT.md`. R/L/C transients, generic diode, static switch, DC divider, sine source and RC AC cutoff are verified on Linux. Full digital, RF, semiconductor database, arbitrary probe insertion, Windows and .ms14 parity remain missing/untested/blocked as specified there.

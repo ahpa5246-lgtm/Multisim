@@ -1,40 +1,32 @@
-# Open Circuit Workbench — native desktop UI prototype
+# Open Circuit Workbench — native desktop interface
 
-This independent Python/Tkinter prototype is an **original, offline schematic editor inspired by the documented NI Multisim 14.x workspace layout**. It preserves the existing Qucs-S submodule and ngspice verification work in the parent repository and is **not yet connected to Qucs-S internally**. No proprietary NI code, icons or binary assets are included.
+Original Multisim-inspired Python/Tk interface with an independently installed **ngspice** engine. Existing Qucs-S is preserved separately; it is not embedded in this UI. No proprietary NI code, icons or firmware are included.
 
-## Windows: start the GUI
+## Start
 
-Install Python 3.10+ from python.org using the standard Tcl/Tk option, then open this `prototype` folder and double-click `START_WINDOWS.bat`. Alternatively run `python run_workbench.py`. Linux: `sh START_LINUX.sh`.
+Requires Python 3.10+ with Tcl/Tk and an ngspice executable. Run `python run_workbench.py` from this folder, or double-click `START_WINDOWS.bat`. On Linux install `ngspice` with your package manager; Windows users can use an existing ngspice installation. Add its directory to PATH, set `OCW_NGSPICE` to the executable, or choose **Options → Locate ngspice executable** for this session. Solver absence raises a clear error; no silent educational-solver fallback.
 
-No API keys, web connection or paid software needed. The Python files use only its standard library.
+## Working tools
 
-## Tested capabilities
+- Place, wire, move, rotate, edit and delete R/C/L/V/GND, diode/LED and static-switch symbols. JSON save/load and undo/redo remain available.
+- Run real ngspice transient or DC operating point; configure duration/steps/frequency range through Simulate → Analysis Settings.
+- Two selectable scope channels use real adaptive sample times.
+- Function Generator changes an actual voltage source to DC, sine, square or triangle. DC uses Offset; AC sweep excites the first voltage source with 1 V and sets other sources' AC amplitudes to zero.
+- Differential voltage meter with time-weighted DC, total RMS, AC RMS, peak-to-peak and frequency-crossing readings. Also source-branch current and mean delivered power.
+- Bode gain/phase from a real AC sweep, with selectable input/output node references.
+- Voltage spectrum with uniform interpolation, Hann window, coherent-gain scaling and automatic radix-2 sample count preserving at least the captured record count. The display labels Nyquist and sampling limits.
+- Thresholded analog logic trace viewer; **not a digital gate simulator**.
+- Export generated netlist, solver log, raw table and CSV through Simulate → Export Simulation Data.
+- Simulations run on a worker thread. Stop terminates ngspice; cancelled or edited-circuit results are discarded.
 
-* Native menus, component toolbars, project hierarchy, scrollable dotted drawing canvas, instruments rail, results/netlists tabs.
-* Place, move, rotate, edit, undo/redo and delete parts; join connections via orthogonal schematic wires; zoom and grid controls.
-* Save/reopen editable `.ocw.json` projects; preview and export SPICE `.cir` netlists for supported linear elements.
-* Calculate educational resistive/capacitive transients with DC voltage sources through MNA and backward Euler; show measured node voltages on a virtual oscilloscope.
-* Startup RC example: 5 V, 1 kΩ, 1 µF, τ=1 ms. The response approximately reaches 3.16 V after one τ.
-* Run `python -m unittest discover -s tests -v` in this folder. Six solver/model unit tests have passed. Linux/Xvfb GUI interaction smoke tests (placement, undo/redo, save/load, scope) have passed.
+Each instrument displays a snapshot of its completed run; rerun after changing the circuit. Transient currently uses zero-state startup (`uic`). Diodes and LEDs use generic educational electrical models, even when an old file's label says 1N4148 or Red; there is no manufacturer validation or optical LED model. Open/closed switches use 1 TΩ / 1 mΩ static resistors. No dynamic switching while a run is active.
 
-## Important limitations
+## Evidence and limits
 
-**This is not yet NI Multisim-equivalent.** No `.ms14` file support, full database, nonlinear semiconductors, sophisticated SPICE engines in this independent GUI, arbitrary instruments or validated Windows installer. The inductor, diode, LED and switch have graphical symbols, but the local solver supports only R/C and independent DC sources; an inductor is allowed in SPICE export, not the native transient solver. Some instrument buttons explicitly show 'not implemented'. Numerical results are educational and not authoritative SPICE validation. Keep using the parent repository's separate Qucs-S/ngspice engine for production simulation.
+Run `xvfb-run -a python -m unittest discover -s tests -v` on Linux with ngspice installed. Without DISPLAY/engine the corresponding tests explicitly skip; that is not a GUI/solver pass. Actual screenshots and RC/sine/AC raw evidence: [instrument evidence](../docs/evidence/ngspice-instruments/).
 
-## Visual reference and IP
+![Bode panel](../docs/evidence/ngspice-instruments/bode.png)
 
-NI Circuit Design Suite Getting Started Guide, 'Multisim User Interface' (menu bar, component toolbar, simulation toolbar, workspace, instrument toolbar): https://download.ni.com/support/manuals/374482h.pdf
+![Oscilloscope](../docs/evidence/ngspice-instruments/scope.png)
 
-Original vector primitives are drawn with Tkinter. This project is not affiliated with NI/Emerson. GPL-2.0-or-later applies to new code; parent Qucs-S and bundled dependencies retain their respective licenses.
-
-## Next engineering milestone
-
-Compile/test the parent Qucs-S backend on Windows; connect real ngspice through a subprocess-backed adapter with input validation, add usable instruments and a component selector; introduce screenshot-based UI regression tests and document functional differences.
-
-## Compact workspace revision (2026-10-21)
-
-The main window now uses compact vector icon toolbars, hover tooltips, a narrow instrument strip, an in-use component list, a zoom selector and a resizable component spreadsheet. Select a spreadsheet row to highlight its schematic part; double-click to edit it. A component preview follows the cursor before placement. Unavailable instruments are disabled.
-
-![Current native workspace](../docs/evidence/workspace-after.png)
-
-The revision passed 12 model/GUI tests on Linux/Tk 9 with a real Xvfb display. Run `xvfb-run -a python -m unittest discover -s tests -v` from this folder. Without a display, six GUI tests are explicitly skipped. Windows rendering has not been verified. This is a closer layout approximation, not full Multisim equivalence.
+No full Multisim equivalence, advanced semiconductor library, arbitrary branch probe, complete logic/RF/HDL integration, .ms14 support or tested Windows installer is claimed. [The complete audit](../docs/OPEN_SOURCE_AUDIT.md) maps the missing tools to candidate projects and validation requirements. GPL-2.0-or-later applies to local code; external engines and upstream code retain their notices.

@@ -4,7 +4,7 @@
 
 ## Desktop prototype
 
-For the independent, directly runnable Multisim-inspired interface, open `prototype/START_WINDOWS.bat` (Python with Tcl/Tk required), or run `python prototype/run_workbench.py`. See [prototype instructions](prototype/README.md). This GUI uses an educational R/C solver; Qucs-S/ngspice below remains separate.
+For the independent, directly runnable Multisim-inspired interface, open `prototype/START_WINDOWS.bat` (Python with Tcl/Tk required), or run `python prototype/run_workbench.py`. See [prototype instructions](prototype/README.md). This GUI now invokes an independently installed ngspice engine for transient, DC and AC analyses. It includes source waveform controls, scope, meter, Bode, sampled spectrum and threshold traces. Qucs-S below remains a separate mature editor. See the [functional audit](docs/OPEN_SOURCE_AUDIT.md) for remaining gaps.
 
 ![Compact desktop workspace](docs/evidence/workspace-after.png)
 

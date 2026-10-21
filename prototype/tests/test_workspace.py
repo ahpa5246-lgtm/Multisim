@@ -1,5 +1,5 @@
 """Run with DISPLAY set (CI uses Xvfb); exercises real Tk widgets."""
-import os
+import os, time, shutil
 import unittest
 from types import SimpleNamespace
 from workbench.app import Workbench
@@ -44,9 +44,12 @@ class WorkspaceTests(unittest.TestCase):
         self.assertNotEqual(old,resistor.pins())
         a.undo()
         self.assertEqual(next(p for p in a.doc.parts if p.id=='R1').rotation,0)
+    @unittest.skipUnless(shutil.which('ngspice') or os.environ.get('OCW_NGSPICE'),'Requires ngspice')
     def test_run_opens_scope_with_real_transient(self):
         a=self.app
         a.run()
+        until=time.monotonic()+5
+        while a._job is not None and time.monotonic()<until:a.update();time.sleep(.01)
         a.update()
         self.assertIsNotNone(a.timeline)
         times,history,nets=a.timeline
@@ -62,3 +65,31 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(len(a.doc.parts),count)
         a.cancel()
         self.assertFalse(a.canvas.find_withtag('placement'))
+    def test_generator_applies_real_source_and_invalidates_result(self):
+        from tkinter import ttk
+        a=self.app;a.generator();a.update()
+        win=next(w for w in a.winfo_children() if w.winfo_class()=='Toplevel')
+        button=next(w for w in win.winfo_children() if isinstance(w,ttk.Button))
+        button.invoke();a.update()
+        self.assertEqual(next(p for p in a.doc.parts if p.kind=='V').value,'SIN(0 5 1000)')
+        self.assertIsNone(a.result)
+    @unittest.skipUnless(shutil.which('ngspice') or os.environ.get('OCW_NGSPICE'),'Requires ngspice')
+    def test_bode_and_meter_panels_use_result(self):
+        from workbench.spice import Engine,Analysis
+        a=self.app
+        a.result=Engine().run(a.doc,Analysis(kind='ac'))
+        a.trace_panel('Bode');a.update()
+        windows=[w for w in a.winfo_children() if w.winfo_class()=='Toplevel']
+        self.assertTrue(any('Bode' in w.title() for w in windows))
+        a.result=Engine().run(a.doc,Analysis(kind='op'))
+        a.multimeter();a.update()
+        self.assertTrue(any('Differential Meter' in w.title() for w in a.winfo_children() if w.winfo_class()=='Toplevel'))
+    def test_stop_discards_already_queued_success(self):
+        import queue,copy
+        from workbench.spice import Engine
+        a=self.app;a._job=queue.Queue();a.engine=Engine();a.result=None
+        a._job.put((object(),None))
+        a.stop()
+        called=[]
+        a._poll_analysis(copy.deepcopy(a.doc),lambda:called.append(True))
+        self.assertIsNone(a.result);self.assertFalse(called)

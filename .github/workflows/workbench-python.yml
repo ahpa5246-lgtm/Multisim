@@ -24,6 +24,6 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall -q workbench
       - name: Install virtual display
-        run: sudo apt-get update && sudo apt-get install -y xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb ngspice
       - name: Run circuit and native GUI tests
         run: xvfb-run -a python -m unittest discover -s tests -v
