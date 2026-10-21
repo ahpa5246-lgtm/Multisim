@@ -16,3 +16,15 @@ Status is evidence based. Upstream capabilities are not automatically locally ve
 
 ## Comparison protocol
 Record NI version, upstream SHA, ngspice version, circuit/model files, supply values, initial conditions, step sizes and tolerances. Save both raw outputs. Compare node voltage, frequency, phase and instrument readings. An analytic pass may expose errors but cannot replace the NI reference.
+
+## Independent Python UI milestone — 2026-10-21
+
+| Workflow | Status | Evidence |
+|---|---|---|
+| Compact Multisim-inspired workspace layout | Implemented; visually reviewed on Linux | Before/after captures in `docs/evidence`; no pixel parity claimed |
+| Component spreadsheet / in-use selection | Verified on Linux | Native Tk interaction tests |
+| Placement cursor preview, undo, rotation, zoom | Verified on Linux | Native Tk interaction tests |
+| Prototype scope from educational transient solver | Verified for startup RC | Native Tk test; does not use ngspice |
+| Separate ngspice RC baseline | Verified | ngspice 42 raw data/log/report in `docs/evidence/rc-ngspice42` |
+| Windows rendering / installer | Untested | Linux cannot establish Windows validation |
+| Qucs-S GUI build | Untested locally | Upstream preserved; no build claimed |

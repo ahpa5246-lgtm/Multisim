@@ -1,0 +1,13 @@
+RC charging baseline: 1 kohm, 1 uF, 5 V
+V1 in 0 DC 5
+R1 in out 1k
+C1 out 0 1u IC=0
+.control
+set noaskquit
+set wr_singlescale
+set wr_vecnames
+tran 10u 5m uic
+wrdata rc.dat v(out)
+quit
+.endc
+.end

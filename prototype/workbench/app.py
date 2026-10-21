@@ -10,16 +10,17 @@ import sys
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from pathlib import Path
+from .toolbar import ToolButton
 from .core import Document, Part, PINS, DEFAULTS, GRID, numeric, snap, simulate
 
-PAPER = '#ffffff'; INK = '#26384a'; BLUE = '#27649c'; RED = '#d53f49'
-GREY = '#64748b'; BOARD = '#e3e6ea'; OUTLINE = '#aeb8c3'; PALE = '#f6f8fa'
+PAPER = '#ffffff'; INK = '#202020'; BLUE = '#163fa0'; RED = '#bf2028'
+GREY = '#606060'; BOARD = '#ededed'; OUTLINE = '#b1b1b1'; PALE = '#f5f5f5'
 
 class Workbench(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title('Open Circuit Workbench — Design1')
-        self.geometry('1400x890'); self.minsize(950,610)
+        self.geometry('1360x850'); self.minsize(950,610)
         self.configure(background=BOARD)
         self.doc = Document()
         self.filepath = None
@@ -38,10 +39,10 @@ class Workbench(tk.Tk):
         style.configure('TFrame',background=BOARD)
         style.configure('Tool.TFrame',background='#f0f1f2')
         style.configure('TButton',font=('Segoe UI',9),padding=(7,4))
-        style.configure('Treeview',font=('Segoe UI',9),rowheight=25,background='white')
+        style.configure('Treeview',font=('Segoe UI',9),rowheight=21,background='white')
         style.configure('Treeview.Heading',font=('Segoe UI',9,'bold'))
         style.configure('TNotebook',background=BOARD)
-        style.configure('TNotebook.Tab',padding=(12,5))
+        style.configure('TNotebook.Tab',padding=(10,3))
         style.configure('TLabel', background=BOARD)
 
     def _make_menu(self):
@@ -66,92 +67,112 @@ class Workbench(tk.Tk):
             menu.add_cascade(label=title,menu=m)
         self.config(menu=menu)
 
-    def _bar_button(self,parent,label,command,color=None,width=None):
-        kw={'font':('Segoe UI',9),'bd':1,'relief':'flat','cursor':'hand2','padx':8,'pady':5,
-            'background':color or '#f0f1f2','foreground':'white' if color else INK,
-            'activebackground':'#dce7f2'}
-        if width: kw['width']=width
-        b=tk.Button(parent,text=label,command=command,**kw); b.pack(side='left',padx=1,pady=3)
-        return b
+    def _tool(self, parent, icon, command, label, key=None, disabled=False, vertical=False):
+        button=ToolButton(parent,icon,command,label,disabled)
+        button.pack(side='top' if vertical else 'left',padx=1,pady=1)
+        if key:self.tool_buttons[key]=button
+        return button
+
+    def _separator(self,parent):
+        tk.Frame(parent,width=1,bg='#b8b8b8').pack(side='left',fill='y',padx=5,pady=4)
 
     def _make_layout(self):
-        head=ttk.Frame(self,style='Tool.TFrame'); head.pack(side='top',fill='x')
-        for lab,cmd in [('▤ New',self.new),('▧ Open',self.open),('▣ Save',self.save),('↶ Undo',self.undo),('↷ Redo',self.redo)]:
-            self._bar_button(head,lab,cmd)
-        tk.Frame(head,width=1,bg=OUTLINE).pack(side='left',fill='y',padx=9,pady=6)
-        for kind,lab in [('R','∿ R'),('C','┃ ┃ C'),('L','〰 L'),('V','⊕ V'),('GND','⏚ GND')]:
-            self._bar_button(head,lab,lambda k=kind:self.set_mode(k))
-        self._bar_button(head,'╱ Wire',lambda:self.set_mode('wire'))
-        tk.Frame(head,width=1,bg=OUTLINE).pack(side='left',fill='y',padx=9,pady=6)
-        self._bar_button(head,'▶ Run',self.run,'#28883b')
-        self._bar_button(head,'■ Stop',self.stop)
-        self._bar_button(head,'⊞ Scope',self.scope)
-        second=ttk.Frame(self,style='Tool.TFrame'); second.pack(fill='x')
-        for k,l in [('D','Diode'),('LED','LED'),('SW','Switch')]:
-            self._bar_button(second,l,lambda k=k:self.set_mode(k))
-        tk.Frame(second,width=1,bg=OUTLINE).pack(side='left',fill='y',padx=9,pady=6)
-        for lab,cmd in [('↻ Rotate',self.rotate),('⊕ Zoom',lambda:self.zoom(1.25)),('⊖ Zoom',lambda:self.zoom(.8)),('⌕ Fit',self.fit),('≡ Components',self.component_browser)]:
-            self._bar_button(second,lab,cmd)
+        self.tool_buttons={}
+        head=tk.Frame(self,bg='#f0f0f0',bd=1,relief='raised');head.pack(fill='x')
+        for icon,cmd,label in [('new',self.new,'New (Ctrl+N)'),('open',self.open,'Open (Ctrl+O)'),
+                               ('save',self.save,'Save (Ctrl+S)')]:self._tool(head,icon,cmd,label)
+        self._separator(head)
+        for icon,cmd,label in [('undo',self.undo,'Undo (Ctrl+Z)'),('redo',self.redo,'Redo (Ctrl+Y)'),
+                               ('delete',self.delete_selected,'Delete selected component')]:self._tool(head,icon,cmd,label)
+        self._separator(head)
+        for icon,cmd,label in [('zoom_in',lambda:self.zoom(1.25),'Zoom in'),('zoom_out',lambda:self.zoom(.8),'Zoom out'),
+                               ('fit',self.fit,'Reset view'),('grid',self.toggle_grid,'Show / hide grid')]:self._tool(head,icon,cmd,label)
+        self.zoom_value=tk.StringVar(value='100%')
+        zoom=ttk.Combobox(head,textvariable=self.zoom_value,values=['50%','75%','100%','125%','150%','200%'],state='readonly',width=6)
+        zoom.pack(side='left',padx=5)
+        zoom.bind('<<ComboboxSelected>>',lambda e:self.zoom(float(self.zoom_value.get().strip('%'))/100/self.scale_factor))
+        self._separator(head)
+        self._tool(head,'run',self.run,'Run transient analysis (F5)')
+        self._tool(head,'stop',self.stop,'Stop — solver runs synchronously')
+        tk.Label(head,text='Transient analysis',bg='#f0f0f0',fg='#444',font=('Segoe UI',9)).pack(side='left',padx=8)
         self.hint=tk.StringVar(value='Ready')
-        ttk.Label(second,textvariable=self.hint,foreground=GREY,background='#f0f1f2').pack(side='right',padx=13)
-        body=ttk.PanedWindow(self,orient=tk.HORIZONTAL); body.pack(fill='both',expand=True,padx=2,pady=2)
-        left=ttk.Frame(body,width=220); body.add(left,weight=0)
-        ttk.Label(left,text=' Design Toolbox',font=('Segoe UI',10,'bold')).pack(anchor='w',pady=7)
-        tools=ttk.Notebook(left); tools.pack(fill='both',expand=True)
-        hierarchy=ttk.Frame(tools); tools.add(hierarchy,text='Hierarchy')
-        self.tree=ttk.Treeview(hierarchy,show='tree',selectmode='browse')
-        self.tree.pack(fill='both',expand=True)
+        second=tk.Frame(self,bg='#f0f0f0',bd=1,relief='raised');second.pack(fill='x')
+        self._tool(second,'select',self.cancel,'Select (Esc)',key='select')
+        self._tool(second,'wire',lambda:self.set_mode('wire'),'Place wire',key='wire')
+        self._separator(second)
+        self._tool(second,'catalog',self.component_browser,'Select a component')
+        for kind,label in [('V','DC voltage source'),('GND','Ground'),('R','Resistor'),('C','Capacitor'),
+                           ('L','Inductor — export only'),('D','Diode — symbol only'),('LED','LED — symbol only'),('SW','Switch — symbol only')]:
+            self._tool(second,kind,lambda k=kind:self.set_mode(k),label,key=kind)
+        self._separator(second)
+        self._tool(second,'rotate',self.rotate,'Rotate selected (Ctrl+R)')
+        self._tool(second,'probe',self.probe,'Read simulated node voltages')
+        tk.Label(second,text='In use:',bg='#f0f0f0',font=('Segoe UI',9)).pack(side='left',padx=(16,4))
+        self.in_use=ttk.Combobox(second,state='readonly',width=22);self.in_use.pack(side='left',padx=4)
+        self.in_use.bind('<<ComboboxSelected>>',self.select_in_use)
+        body=ttk.PanedWindow(self,orient=tk.HORIZONTAL);body.pack(fill='both',expand=True)
+        left=ttk.Frame(body,width=185);body.add(left,weight=0)
+        title=tk.Frame(left,bg='#d8dfe8');title.pack(fill='x')
+        tk.Label(title,text='Design Toolbox',bg='#d8dfe8',fg='#243449',font=('Segoe UI',9,'bold'),anchor='w').pack(fill='x',padx=6,pady=4)
+        tools=ttk.Notebook(left);tools.pack(fill='both',expand=True)
+        hierarchy=ttk.Frame(tools);tools.add(hierarchy,text='Hierarchy')
+        self.tree=ttk.Treeview(hierarchy,show='tree',selectmode='browse');self.tree.pack(fill='both',expand=True)
         self.tree.bind('<<TreeviewSelect>>',self.on_tree_select)
-        components=ttk.Frame(tools); tools.add(components,text='Components')
-        self.parts_list=tk.Listbox(components,relief='flat',background='#fff',font=('Segoe UI',10),highlightthickness=0)
-        self.parts_list.pack(fill='both',expand=True)
-        self.parts_list.bind('<Double-Button-1>',self.list_place)
-        for label in ['Resistor  (R)','Capacitor  (C)','Inductor  (L)','DC Voltage  (V)','Ground  (GND)','Diode  (D)','LED','Switch  (SW)']:
-            self.parts_list.insert('end',label)
-        middle=ttk.Frame(body); body.add(middle,weight=5)
-        docbar=ttk.Frame(middle,style='Tool.TFrame'); docbar.pack(fill='x')
-        self.doclabel=ttk.Label(docbar,text=' ◧ Design1*   ',background='#ffffff',foreground=BLUE,font=('Segoe UI',9,'bold'))
-        self.doclabel.pack(side='left',padx=3,pady=3)
-        ttk.Label(docbar,text='Schematic Capture',foreground=GREY,background='#f0f1f2').pack(side='right',padx=9)
-        workspace=ttk.Frame(middle); workspace.pack(fill='both',expand=True)
-        self.canvas=tk.Canvas(workspace,background=PAPER,bd=0,highlightthickness=0,
-                              scrollregion=(0,0,2100,1500),cursor='crosshair')
+        components=ttk.Frame(tools);tools.add(components,text='Components')
+        self.parts_list=tk.Listbox(components,relief='flat',bg='white',font=('Segoe UI',9),highlightthickness=0)
+        self.parts_list.pack(fill='both',expand=True);self.parts_list.bind('<Double-Button-1>',self.list_place)
+        for label in ['Resistor  (R)','Capacitor  (C)','Inductor  (L)','DC Voltage  (V)','Ground  (GND)','Diode  (D)','LED','Switch  (SW)']:self.parts_list.insert('end',label)
+        middle=ttk.Frame(body);body.add(middle,weight=5)
+        docbar=tk.Frame(middle,bg='#d6d6d6',height=27);docbar.pack(fill='x')
+        self.doclabel=tk.Label(docbar,text='Design1',bg='white',fg='#222',font=('Segoe UI',9),padx=14,pady=4,relief='ridge',bd=1)
+        self.doclabel.pack(side='left',padx=(2,0),pady=(2,0))
+        vertical=ttk.PanedWindow(middle,orient=tk.VERTICAL);vertical.pack(fill='both',expand=True)
+        workspace=ttk.Frame(vertical);vertical.add(workspace,weight=5)
+        self.canvas=tk.Canvas(workspace,bg=PAPER,bd=0,highlightthickness=0,scrollregion=(0,0,2100,1500),cursor='arrow')
         self.scroll_y=ttk.Scrollbar(workspace,orient='vertical',command=self.canvas.yview)
         self.scroll_x=ttk.Scrollbar(workspace,orient='horizontal',command=self.canvas.xview)
         self.canvas.configure(xscrollcommand=self.scroll_x.set,yscrollcommand=self.scroll_y.set)
-        self.canvas.grid(row=0,column=0,sticky='nsew'); self.scroll_y.grid(row=0,column=1,sticky='ns'); self.scroll_x.grid(row=1,column=0,sticky='ew')
-        workspace.columnconfigure(0,weight=1); workspace.rowconfigure(0,weight=1)
-        self.grid_visible=True; self.snap_on=True
-        self.canvas.bind('<Button-1>',self.canvas_down)
-        self.canvas.bind('<B1-Motion>',self.canvas_drag)
-        self.canvas.bind('<ButtonRelease-1>',self.canvas_up)
-        self.canvas.bind('<Double-Button-1>',self.canvas_double)
-        self.canvas.bind('<Motion>',self.canvas_move)
-        self.canvas.bind('<Button-3>',self.right_click)
-        self.canvas.bind('<MouseWheel>',self.on_mousewheel)
-        self.canvas.bind('<Button-4>',lambda ev:self.zoom(1.1))
-        self.canvas.bind('<Button-5>',lambda ev:self.zoom(.9))
-        self.canvas.bind('<ButtonPress-2>',lambda e:self.canvas.scan_mark(e.x,e.y))
-        self.canvas.bind('<B2-Motion>',lambda e:self.canvas.scan_dragto(e.x,e.y,gain=1))
-        results=ttk.Notebook(middle,height=123); results.pack(fill='x')
-        self.report_tabs=results
+        self.canvas.grid(row=0,column=0,sticky='nsew');self.scroll_y.grid(row=0,column=1,sticky='ns');self.scroll_x.grid(row=1,column=0,sticky='ew')
+        workspace.columnconfigure(0,weight=1);workspace.rowconfigure(0,weight=1)
+        self.grid_visible=True;self.snap_on=True
+        for event,fn in [('<Button-1>',self.canvas_down),('<B1-Motion>',self.canvas_drag),('<ButtonRelease-1>',self.canvas_up),
+                         ('<Double-Button-1>',self.canvas_double),('<Motion>',self.canvas_move),('<Button-3>',self.right_click),('<MouseWheel>',self.on_mousewheel)]:self.canvas.bind(event,fn)
+        self.canvas.bind('<Button-4>',lambda ev:self.zoom(1.1));self.canvas.bind('<Button-5>',lambda ev:self.zoom(.9))
+        self.canvas.bind('<ButtonPress-2>',lambda e:self.canvas.scan_mark(e.x,e.y));self.canvas.bind('<B2-Motion>',lambda e:self.canvas.scan_dragto(e.x,e.y,gain=1))
+        results_frame=ttk.Frame(vertical,height=165);vertical.add(results_frame,weight=1)
+        tk.Label(results_frame,text='Spreadsheet View',anchor='w',bg='#d8dfe8',fg='#243449',font=('Segoe UI',9,'bold'),padx=6,pady=3).pack(fill='x')
+        results=ttk.Notebook(results_frame,height=118);results.pack(fill='both',expand=True);self.report_tabs=results
         for label in ['Results','Nets','Components','Simulation']:
-            f=ttk.Frame(results); results.add(f,text=label)
-            t=tk.Text(f,height=5,wrap='word',font=('Consolas',9),bg='#fff',fg=INK,relief='flat')
-            t.pack(fill='both',expand=True)
-            t.config(state='disabled')
-            setattr(self,'panel_'+label.lower(),t)
-        right=ttk.Frame(body,width=79); body.add(right,weight=0)
-        ttk.Label(right,text=' Instruments',font=('Segoe UI',9,'bold')).pack(pady=7)
-        for label,cmd in [('XMM',self.multimeter),('XSC',self.scope),('XFG',self.generator),('Bode',self.not_ready),('LA',self.not_ready),('Watt',self.not_ready),('Probe',self.probe)]:
-            b=tk.Button(right,text=label,width=8,command=cmd,background='#e8f0e5',foreground=INK,
-                        relief='groove',font=('Segoe UI',9,'bold'),pady=10,cursor='hand2')
-            b.pack(padx=4,pady=3)
-        bottom=ttk.Frame(self,style='Tool.TFrame'); bottom.pack(side='bottom',fill='x')
-        self.coordlabel=ttk.Label(bottom,text='X: 0  Y: 0',background='#f0f1f2'); self.coordlabel.pack(side='left',padx=12,pady=4)
-        ttk.Label(bottom,text='Open Circuit Workbench  |  Local document   •   Original UI   •   Qucs-S/ngspice backend preserved in repository',
-                  background='#f0f1f2',foreground=GREY).pack(side='right',padx=14)
-        self.history=[]; self.future=[]
+            f=ttk.Frame(results);results.add(f,text=label)
+            if label=='Components':
+                self.component_sheet=ttk.Treeview(f,columns=('ref','value','type','rotation'),show='headings',selectmode='browse',height=4)
+                for col,title,width in [('ref','RefDes',100),('value','Value',160),('type','Component',180),('rotation','Rotation',100)]:
+                    self.component_sheet.heading(col,text=title);self.component_sheet.column(col,width=width,anchor='w')
+                self.component_sheet.pack(fill='both',expand=True)
+                self.component_sheet.bind('<<TreeviewSelect>>',self.select_sheet)
+                self.component_sheet.bind('<Double-1>',lambda e:self.properties())
+            else:
+                t=tk.Text(f,height=4,wrap='word',font=('Consolas',9),bg='white',fg=INK,relief='flat',padx=5,pady=4)
+                t.pack(fill='both',expand=True);t.config(state='disabled');setattr(self,'panel_'+label.lower(),t)
+        right=tk.Frame(body,width=36,bg='#f0f0f0',bd=1,relief='raised');body.add(right,weight=0)
+        for icon,cmd,label,disabled in [('meter',self.multimeter,'Multimeter: simulated DC node readings',False),
+                ('scope',self.scope,'Oscilloscope: transient node voltages',False),('generator',self.generator,'Function generator — unavailable',True),
+                ('bode',self.not_ready,'Bode plotter — unavailable',True),('logic',self.not_ready,'Logic analyzer — unavailable',True),
+                ('probe',self.probe,'Read simulated node voltages',False)]:self._tool(right,icon,cmd,label,disabled=disabled,vertical=True)
+        bottom=tk.Frame(self,bg='#f0f0f0',bd=1,relief='sunken');bottom.pack(side='bottom',fill='x',before=body)
+        tk.Label(bottom,textvariable=self.hint,bg='#f0f0f0',fg='#333',anchor='w',font=('Segoe UI',9)).pack(side='left',padx=6,pady=3)
+        self.coordlabel=tk.Label(bottom,text='X: 0  Y: 0',bg='#f0f0f0',font=('Segoe UI',9));self.coordlabel.pack(side='right',padx=8)
+        self.history=[];self.future=[];self.tool_buttons['select'].selected(True)
+        self.report_tabs.select(2)
+
+    def select_sheet(self,event=None):
+        chosen=self.component_sheet.selection()
+        if chosen and chosen[0]!=self.selected:
+            self.selected=chosen[0];self.render()
+
+    def select_in_use(self,event=None):
+        chosen=self.in_use.get().split(' ')[0]
+        if any(p.id==chosen for p in self.doc.parts):self.selected=chosen;self.render()
 
     def _keys(self):
         for event,fn in [('<Control-n>',self.new),('<Control-o>',self.open),('<Control-s>',self.save),
@@ -162,17 +183,28 @@ class Workbench(tk.Tk):
     def status(self,msg): self.hint.set(msg)
     def update_labels(self):
         self.title('Open Circuit Workbench — '+self.doc.title)
-        self.doclabel.configure(text=' ◧ '+self.doc.title+'   ')
+        self.doclabel.configure(text=self.doc.title)
         self.tree.delete(*self.tree.get_children())
-        root=self.tree.insert('', 'end', iid='design', text='▤  '+self.doc.title,open=True)
+        root=self.tree.insert('', 'end', iid='design', text=self.doc.title,open=True)
         for group in ['Analog','Sources','References','Others']:
             key='group_'+group
-            self.tree.insert(root,'end',iid=key,text='▸  '+group,open=True)
+            self.tree.insert(root,'end',iid=key,text=group,open=True)
             for p in self.doc.parts:
                 if ('Analog' if p.kind in ('R','C','L') else
                     'Sources' if p.kind=='V' else 'References' if p.kind=='GND' else 'Others')==group:
                     self.tree.insert(key,'end',iid=p.id,text=f'  {p.id}  {p.value}')
-        self.write_panel('components','\n'.join(f'{p.id:6} {p.kind:5} {p.value}' for p in self.doc.parts))
+        current={part.id for part in self.doc.parts}
+        for key in self.component_sheet.get_children():
+            if key not in current:self.component_sheet.delete(key)
+        for part in self.doc.parts:
+            values=(part.id,part.value,part.kind,f'{part.rotation}°')
+            if self.component_sheet.exists(part.id):self.component_sheet.item(part.id,values=values)
+            else:self.component_sheet.insert('', 'end',iid=part.id,values=values)
+        if self.selected and self.component_sheet.exists(self.selected):
+            if self.component_sheet.selection()!=(self.selected,):self.component_sheet.selection_set(self.selected)
+        elif self.component_sheet.selection():self.component_sheet.selection_remove(*self.component_sheet.selection())
+        self.in_use['values']=[f'{p.id}  {p.value}' for p in self.doc.parts]
+        self.in_use.set(next((f'{p.id}  {p.value}' for p in self.doc.parts if p.id==self.selected),''))
         self.write_panel('nets','\n'.join(f'{k[0]} pin {k[1]+1}: node {v}' for k,v in self.doc.networks().items()))
 
     def write_panel(self,tab,text):
@@ -200,7 +232,9 @@ class Workbench(tk.Tk):
             self.history.append(self.doc.to_dict())
             self.restore(self.future.pop()); self.status('Redo')
     def set_mode(self,mode):
-        self.mode=mode; self.pending=None; self.status('Click canvas to place '+mode if mode not in ('select','wire') else ('Click a pin to begin wiring; click another pin to finish' if mode=='wire' else 'Select component'))
+        self.mode=mode; self.pending=None;
+        for key,button in self.tool_buttons.items():button.selected(key==mode)
+        self.status('Click canvas to place '+mode if mode not in ('select','wire') else ('Click a pin to begin wiring; click another pin to finish' if mode=='wire' else 'Select component'))
         self.canvas.configure(cursor='crosshair' if mode!='select' else 'arrow')
         self.render()
     def cancel(self): self.set_mode('select')
@@ -208,8 +242,8 @@ class Workbench(tk.Tk):
     def toggle_snap(self): self.snap_on=not self.snap_on; self.status('Grid snap '+('ON' if self.snap_on else 'OFF'))
     def zoom(self,fac):
         nxt=max(.5,min(2.0,self.scale_factor*fac))
-        self.scale_factor=nxt; self.render(); self.status(f'Zoom: {int(nxt*100)}%')
-    def fit(self): self.scale_factor=1; self.render(); self.canvas.xview_moveto(0);self.canvas.yview_moveto(0)
+        self.scale_factor=nxt; self.zoom_value.set(f'{nxt*100:g}%'); self.render(); self.status(f'Zoom: {int(nxt*100)}%')
+    def fit(self): self.scale_factor=1; self.zoom_value.set('100%'); self.render(); self.canvas.xview_moveto(0);self.canvas.yview_moveto(0)
     def on_mousewheel(self,event):
         if event.state & 0x0004: self.zoom(1.1 if event.delta>0 else .9)
         else: self.canvas.yview_scroll(-1 if event.delta>0 else 1,'units')
@@ -237,6 +271,12 @@ class Workbench(tk.Tk):
         if idx:self.set_mode(list(PINS)[idx[0]])
     def canvas_move(self,ev):
         pt=self.wp(ev); self.coordlabel.configure(text=f'X: {pt[0]}  Y: {pt[1]}  •  Zoom: {int(self.scale_factor*100)}%')
+        if self.mode in PINS:
+            self.canvas.delete('placement')
+            old=set(self.canvas.find_all())
+            ghost=Part(self.doc.next_name(self.mode),self.mode,*pt,DEFAULTS[self.mode][0])
+            self._shape(ghost)
+            for item in set(self.canvas.find_all())-old:self.canvas.addtag_withtag('placement',item)
         if self.mode=='wire' and self.pending:
             self.canvas.delete('rubber')
             a=self.xp(self.pending); b=self.xp(pt)
@@ -442,6 +482,9 @@ class Workbench(tk.Tk):
         self.doc.add_wire((660,460),(300,460))
         self.doc.add_wire((300,460),v.pins()[1])
         self.doc.add_wire((300,460),g.pins()[0])
+        for part in self.doc.parts:part.y-=80
+        for wire in self.doc.wires:
+            wire.a=(wire.a[0],wire.a[1]-80);wire.b=(wire.b[0],wire.b[1]-80)
         self.filepath=None;self.history.clear();self.future.clear();self.selected=None;self.timeline=None
         self.render();self.write_panel('results','Example: a 5 V DC source charges a 1 µF capacitor through 1 kΩ.\nClick ▶ Run to solve a real 240-step transient.\nDouble-click a part to change its value.')
         self.status('Ready — sample RC circuit loaded')

@@ -2,6 +2,12 @@
 
 نسخة مكتبية مجانية مبنية على Qucs-S، تستهدف تدريجيًا سير عمل مألوفًا لمستخدمي NI Multisim. هذا المستودع ليس منتج NI ولا نسخة مكتملة من Multisim.
 
+## Desktop prototype
+
+For the independent, directly runnable Multisim-inspired interface, open `prototype/START_WINDOWS.bat` (Python with Tcl/Tk required), or run `python prototype/run_workbench.py`. See [prototype instructions](prototype/README.md). This GUI uses an educational R/C solver; Qucs-S/ngspice below remains separate.
+
+![Compact desktop workspace](docs/evidence/workspace-after.png)
+
 ## Current milestone
 
 The complete upstream Qt schematic editor is pinned as a Git submodule, not replaced by a mock web UI. Local additions provide reproducible builds and an independently checked RC simulation baseline. No proprietary code or artwork is included.
