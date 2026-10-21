@@ -30,3 +30,11 @@ Original vector primitives are drawn with Tkinter. This project is not affiliate
 ## Next engineering milestone
 
 Compile/test the parent Qucs-S backend on Windows; connect real ngspice through a subprocess-backed adapter with input validation, add usable instruments and a component selector; introduce screenshot-based UI regression tests and document functional differences.
+
+## Compact workspace revision (2026-10-21)
+
+The main window now uses compact vector icon toolbars, hover tooltips, a narrow instrument strip, an in-use component list, a zoom selector and a resizable component spreadsheet. Select a spreadsheet row to highlight its schematic part; double-click to edit it. A component preview follows the cursor before placement. Unavailable instruments are disabled.
+
+![Current native workspace](../docs/evidence/workspace-after.png)
+
+The revision passed 12 model/GUI tests on Linux/Tk 9 with a real Xvfb display. Run `xvfb-run -a python -m unittest discover -s tests -v` from this folder. Without a display, six GUI tests are explicitly skipped. Windows rendering has not been verified. This is a closer layout approximation, not full Multisim equivalence.

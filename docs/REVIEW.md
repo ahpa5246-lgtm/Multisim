@@ -20,3 +20,32 @@ Read CI logs and fix build/simulation failures. Obtain a native Windows build an
 
 ## Supervision
 A bounded hourly follow-up was created for 24 runs starting 2026-10-18 03:15 Asia/Baghdad. Existing general summaries remain separate. Scheduling does not prove a running Codex Cloud session or guarantee tools/quota on future runs.
+
+## Workspace revision — 2026-10-21
+
+User requested a closer match to NI Multisim's interface. This milestone changes the existing independent Tk prototype, not the pinned Qucs-S editor. The previous foundation-only recommendation to preserve the UI is superseded by that explicit request. The mature upstream editor and its notices remain untouched.
+
+### Implemented
+- Two compact icon toolbars with original vector artwork, tooltips, keyboard activation and visible selection state.
+- Narrow vertical instrument rail; unavailable instruments are disabled and labelled in tooltips.
+- In-use component selector and zoom percentage control.
+- Resizable spreadsheet area with real component rows linked to schematic selection, properties, placement and undo.
+- Component cursor preview without adding anything to the document before placement.
+- Reserved status bar space and an RC example that fits the default canvas height.
+- GUI tests added to the existing CI workflow using Xvfb.
+
+### Verification
+- Python 3.12 / Tcl-Tk 9.0, Linux: `python -m compileall -q prototype/workbench` PASS. This byte-compiles the Python prototype; it is not a compiled Qucs-S binary or Windows package.
+- `DISPLAY=127.0.0.1:94 PYTHONPATH=prototype python -m unittest discover -s prototype/tests -v`: 12 PASS, no skips. Includes actual Tk selection, placement/undo, rotation retaining connections, cursor preview, zoom, and scope display from the educational transient solver.
+- `python -m unittest discover -s tests -v`: 6 PASS.
+- Real ngspice 42: `python scripts/verify_rc.py --output reports/rc.json` PASS, 511 samples, maximum waveform error 0.0000146819 V. Separate backend baseline; this GUI still uses its educational R/C MNA solver.
+- Raw RC circuit, ngspice log, sampled data and validation report are committed under `docs/evidence/rc-ngspice42/`.
+- Actual Tk window captures at the same 1360 × 850 client size: [before](evidence/workspace-before.png), [after](evidence/workspace-after.png). Linux font/theme rendering differs from native Windows.
+- Initial environment attempts failed: package manager privilege drop, missing X server dependencies, and cross-process display connection. Dependencies were extracted locally and Xvfb/tests run in the same command network namespace; subsequent complete GUI run passed. No failures hidden as skipped GUI checks.
+
+### Comparison and limits
+Reference: NI Circuit Design Suite Getting Started Guide, page 3, https://download.ni.com/support/manuals/374482h.pdf. Layout comparison covers compact standard/component/simulation toolbars, left hierarchy, white worksheet, right instruments and bottom spreadsheet. It is an original approximation, not pixel parity or copied NI source/artwork.
+
+Qt/Qucs-S compilation remains unverified in this environment; this revision does not change upstream. Native Windows interaction and packaging remain untested. No NI executable, reference measurement exports or real .ms14 fixture are available, so direct numerical parity and file interoperability remain blocked. Advanced instruments remain unavailable.
+
+Next bounded task: run this exact revision on Windows and validate opening, component selection, wiring, save/reopen and scope rendering before producing an installer. Connecting this prototype to ngspice is a separate functional milestone.

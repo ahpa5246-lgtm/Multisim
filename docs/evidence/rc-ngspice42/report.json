@@ -1,0 +1,12 @@
+{
+  "samples": 511,
+  "max_error_v": 1.4681871751243136e-05,
+  "tau_s": 0.001,
+  "sample_near_tau": [
+    0.0009996,
+    3.15988156
+  ],
+  "expected_at_tau_v": 3.1606027941427883,
+  "status": "pass",
+  "solver_version": "******\n** ngspice-42 : Circuit level simulation program\n** Compiled with KLU Direct Linear Solver\n** The U. C. Berkeley CAD Group\n** Copyright 1985-1994, Regents of the University of California.\n** Copyright 2001-2023, The ngspice team.\n** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html\n** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html\n** Creation Date: Sun Mar 31 20:15:14 UTC 2024\n******"
+}
