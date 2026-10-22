@@ -14,7 +14,7 @@ from pathlib import Path
 from .toolbar import ToolButton
 from .instruments import Instruments
 from .spice import Analysis, source_value, compile_deck
-from .core import Document, Part, PINS, DEFAULTS, GRID, numeric, snap, simulate
+from .core import Document, Part, PINS, DEFAULTS, GRID, numeric, snap, simulate, PIN_LABELS
 
 PAPER = '#ffffff'; INK = '#202020'; BLUE = '#163fa0'; RED = '#bf2028'
 GREY = '#606060'; BOARD = '#ededed'; OUTLINE = '#b1b1b1'; PALE = '#f5f5f5'
@@ -62,9 +62,9 @@ class Workbench(Instruments, tk.Tk):
             'File':[('New',self.new),('Open...',self.open),('Save',self.save),('Save As...',self.save_as),('Export SPICE Netlist...',self.export_netlist),None,('Exit',self.close_workbench)],
             'Edit':[('Undo',self.undo),('Redo',self.redo),None,('Delete Selected',self.delete_selected),('Rotate Selected',self.rotate),('Properties',self.properties)],
             'View':[('Zoom In',lambda:self.zoom(1.25)),('Zoom Out',lambda:self.zoom(.8)),('Zoom to Fit',self.fit),('Show Grid',self.toggle_grid)],
-            'Place':[('Resistor',lambda:self.set_mode('R')),('Capacitor',lambda:self.set_mode('C')),('Inductor',lambda:self.set_mode('L')),('DC Voltage',lambda:self.set_mode('V')),('Ground',lambda:self.set_mode('GND')),('Diode',lambda:self.set_mode('D')),('LED',lambda:self.set_mode('LED')),('Switch',lambda:self.set_mode('SW')),None,('Wire',lambda:self.set_mode('wire'))],
+            'Place':[('Component... (Ctrl+W)',self.component_browser),('Net Alias',lambda:self.set_mode('NET')),('Current Source',lambda:self.set_mode('I')),('Potentiometer',lambda:self.set_mode('POT')),('Resistor',lambda:self.set_mode('R')),('Capacitor',lambda:self.set_mode('C')),('Inductor',lambda:self.set_mode('L')),('DC Voltage',lambda:self.set_mode('V')),('Ground',lambda:self.set_mode('GND')),('Diode',lambda:self.set_mode('D')),('LED',lambda:self.set_mode('LED')),('Switch',lambda:self.set_mode('SW')),None,('Wire',lambda:self.set_mode('wire'))],
             'Simulate':[('Run Transient',self.run),('DC Operating Point',self.dc_analysis),('DC Sweep / I–V...',self.dc_sweep),('AC Sweep / Bode',self.bode),('Analysis Settings...',self.analysis_settings),('Stop',self.stop),None,('Oscilloscope',self.scope),('Multimeter',self.multimeter),('Function Generator',self.generator),('Logic Traces',self.logic),('Voltage Spectrum',self.spectrum_panel),('Export Simulation Data...',self.export_results),None,('Load RC Example',self.example),('Load Op-Amp Example',lambda:self.load_demo('opamp-follower.ocw.json')),('Load Transistor Example',lambda:self.load_demo('bjt-characteristic.ocw.json'))],
-            'Tools':[('Components Browser',self.component_browser),('Inspect EW/Multisim Container...',self.inspect_container),('Project Information',self.project_info),('Electrical Rule Check',lambda:self.report_tabs.select(6))],
+            'Tools':[('Course Experiments...',self.course_browser),('Check Experiment Results',self.check_experiment),('Components Browser',self.component_browser),('Inspect EW/Multisim Container...',self.inspect_container),('Project Information',self.project_info),('Electrical Rule Check',lambda:self.report_tabs.select(6))],
             'Reports':[('Netlist Preview',self.preview_netlist)],
             'Options':[('Grid Snap',self.toggle_snap),('Locate ngspice executable...',self.locate_ngspice)],
             'Window':[('Reset Workspace',self.reset_workspace)],
@@ -103,9 +103,12 @@ class Workbench(Instruments, tk.Tk):
         zoom.pack(side='left',padx=5)
         zoom.bind('<<ComboboxSelected>>',lambda e:self.zoom(float(self.zoom_value.get().strip('%'))/100/self.scale_factor))
         self._separator(head)
-        self._tool(head,'run',self.run,'Run transient analysis (F5)')
+        self._tool(head,'run',self.run_selected,'Run selected analysis (F5)')
         self._tool(head,'stop',self.stop,'Stop ngspice simulation')
-        tk.Label(head,text='Transient analysis',bg='#f0f0f0',fg='#444',font=(theme.FAMILY,9)).pack(side='left',padx=8)
+        self.analysis_mode=tk.StringVar(value='Transient')
+        self.analysis_choice=ttk.Combobox(head,textvariable=self.analysis_mode,values=['Transient','DC Operating Point','AC Sweep','DC Sweep'],state='readonly',width=20)
+        self.analysis_choice.pack(side='left',padx=8)
+        ttk.Button(head,text='Experiments',command=self.course_browser).pack(side='left',padx=4)
         self.hint=tk.StringVar(value='Ready')
         second=tk.Frame(self,bg='#f0f0f0',bd=1,relief='raised');second.pack(fill='x')
         self._tool(second,'select',self.cancel,'Select (Esc)',key='select')
@@ -113,7 +116,7 @@ class Workbench(Instruments, tk.Tk):
         self._separator(second)
         self._tool(second,'catalog',self.component_browser,'Select a component')
         for kind,label in [('V','DC voltage source'),('GND','Ground'),('R','Resistor'),('C','Capacitor'),
-                           ('L','Inductor'),('D','Diode — generic electrical model'),('LED','LED — generic electrical model'),('SW','Static open/closed switch')]:
+                           ('L','Inductor'),('D','Diode - selected library model'),('LED','LED — generic electrical model'),('SW','Static open/closed switch')]:
             self._tool(second,kind,lambda k=kind:self.set_mode(k),label,key=kind)
         self._separator(second)
         self._tool(second,'rotate',self.rotate,'Rotate selected (Ctrl+R)')
@@ -132,7 +135,8 @@ class Workbench(Instruments, tk.Tk):
         components=ttk.Frame(tools);tools.add(components,text='Components')
         self.parts_list=tk.Listbox(components,relief='flat',bg='white',font=(theme.FAMILY,9),highlightthickness=0)
         self.parts_list.pack(fill='both',expand=True);self.parts_list.bind('<Double-Button-1>',self.list_place)
-        for label in ['Resistor  (R)','Capacitor  (C)','Inductor  (L)','DC Voltage  (V)','Ground  (GND)','Diode  (D)','LED','Switch  (SW)']:self.parts_list.insert('end',label)
+        self.palette_kinds=['IPROBE','R','C','L','V','I','GND','D','LED','SW','POT','NPN','PNP','NJF','PJF','NMOS','PMOS','SCR','TRIAC','DIAC','IGBT','OPAMP','NET']
+        for kind in self.palette_kinds:self.parts_list.insert('end',kind+'  '+DEFAULTS[kind][0])
         middle=ttk.Frame(body);body.add(middle,weight=5)
         docbar=tk.Frame(middle,bg='#d6d6d6',height=27);docbar.pack(fill='x')
         self.doclabel=tk.Label(docbar,text='Design1',bg='white',fg='#222',font=(theme.FAMILY,9),padx=14,pady=4,relief='ridge',bd=1)
@@ -188,7 +192,7 @@ class Workbench(Instruments, tk.Tk):
     def _keys(self):
         for event,fn in [('<Control-n>',self.new),('<Control-o>',self.open),('<Control-s>',self.save),
                          ('<Control-z>',self.undo),('<Control-y>',self.redo),('<Delete>',self.delete_selected),
-                         ('<F5>',self.run),('<Escape>',self.cancel),('<Control-r>',self.rotate)]:
+                         ('<F5>',self.run_selected),('<Escape>',self.cancel),('<Control-r>',self.rotate),('<Control-w>',self.component_browser)]:
             self.bind_all(event,lambda e,fn=fn:fn())
 
     def status(self,msg): self.hint.set(msg)
@@ -202,7 +206,7 @@ class Workbench(Instruments, tk.Tk):
             self.tree.insert(root,'end',iid=key,text=group,open=True)
             for p in self.doc.parts:
                 if ('Analog' if p.kind in ('R','C','L') else
-                    'Sources' if p.kind=='V' else 'References' if p.kind=='GND' else 'Others')==group:
+                    'Sources' if p.kind in ('V','I') else 'References' if p.kind in ('GND','NET') else 'Others')==group:
                     self.tree.insert(key,'end',iid=p.id,text=f'  {p.id}  {p.value}')
         current={part.id for part in self.doc.parts}
         for key in self.component_sheet.get_children():
@@ -219,13 +223,13 @@ class Workbench(Instruments, tk.Tk):
         self.write_panel('nets','\n'.join(f'{k[0]} pin {k[1]+1}: node {v}' for k,v in self.doc.networks().items()))
         from .devices import MODELS
         from collections import Counter
-        self.write_panel('models','\n\n'.join(f'{p.id}: {p.value} — {MODELS[p.value]["source"]}\n{MODELS[p.value]["description"]}' for p in self.doc.parts if p.kind in ('NPN','PNP','OPAMP') and p.value in MODELS))
-        counts=Counter((p.kind,p.value) for p in self.doc.parts)
+        self.write_panel('models','\n\n'.join(f'{p.id}: {p.value} — {MODELS[p.value]["source"]}\n{MODELS[p.value]["description"]}' for p in self.doc.parts if p.value in MODELS))
+        counts=Counter((p.kind,p.value) for p in self.doc.parts if p.kind not in ('NET','GND'))
         self.write_panel('bom','Quantity  Type  Value / Model\n'+'\n'.join(f'{count:8}  {kind:6}  {value}' for (kind,value),count in sorted(counts.items())))
-        nets=self.doc.networks();contacts=Counter(nets.values());warnings=[]
+        nets=self.doc.networks();physical={p.id for p in self.doc.parts if p.kind!='NET'};contacts=Counter(node for (ref,_),node in nets.items() if ref in physical);warnings=[]
         if '0' not in contacts:warnings.append('ERROR: missing ground reference')
         for (part,pin),node in nets.items():
-            if contacts[node]==1:warnings.append(f'WARNING: {part} pin {pin+1} is the only component terminal on node {node}')
+            if part in physical and contacts[node]==1:warnings.append(f'WARNING: {part} pin {pin+1} is the only component terminal on node {node}')
         self.write_panel('diagnostics','\n'.join(warnings) or 'No isolated terminals detected. This connectivity check does not validate models, ratings or circuit function.')
 
 
@@ -292,7 +296,7 @@ class Workbench(Instruments, tk.Tk):
             self.selected=next((p.id for p in self.doc.parts if p.id==ids[0]),None);self.render()
     def list_place(self,event):
         idx=self.parts_list.curselection()
-        if idx:self.set_mode(['R','C','L','V','GND','D','LED','SW'][idx[0]])
+        if idx:self.set_mode(self.palette_kinds[idx[0]])
     def canvas_move(self,ev):
         pt=self.wp(ev); self.coordlabel.configure(text=f'X: {pt[0]}  Y: {pt[1]}  •  Zoom: {int(self.scale_factor*100)}%')
         if self.mode in PINS:
@@ -339,6 +343,14 @@ class Workbench(Instruments, tk.Tk):
         new=part.pins(); self._move_connected(old,new);self.render()
     def canvas_up(self,ev):self.drag_offset=None;self._drag_checkpoint=False;self.drag_start=None
     def _move_connected(self,old,new):
+        turn=0
+        if len(old)>1:
+            before=math.atan2(old[1][1]-old[0][1],old[1][0]-old[0][0]);after=math.atan2(new[1][1]-new[0][1],new[1][0]-new[0][0])
+            turn=round(math.degrees(after-before)/90)*90
+        for alias in self.doc.parts:
+            if alias.kind=='NET' and (alias.x,alias.y) in old:
+                alias.x,alias.y=new[old.index((alias.x,alias.y))]
+                alias.rotation=(alias.rotation+turn)%360
         for wire in self.doc.wires:
             if wire.a in old: wire.a=new[old.index(wire.a)]
             if wire.b in old: wire.b=new[old.index(wire.b)]
@@ -369,11 +381,17 @@ class Workbench(Instruments, tk.Tk):
         p=next((p for p in self.doc.parts if p.id==self.selected),None)
         if not p:return
         if p.kind=='GND':return
-        value=simpledialog.askstring('Component Properties',f'{p.id} — {p.kind}\nValue (use suffixes: k, m, u, n):',initialvalue=p.value,parent=self)
+        value=simpledialog.askstring('Component Properties',f'{p.id} — {p.kind}\nPins: {PIN_LABELS.get(p.kind, "1 / 2")}\n'+('Total ohms:position (0 to 1)' if p.kind=='POT' else 'Value / exact library model (suffixes k, m, u, n):'),initialvalue=p.value,parent=self)
         if value is None:return
         if p.kind in ('R','C','L','V'):
             try: source_value(value) if p.kind=='V' else numeric(value)
             except ValueError as e:messagebox.showerror('Invalid component value',str(e));return
+        from .devices import device_model
+        import re
+        try:
+            if p.kind=='NET' and not re.fullmatch(r'(?:[A-Za-z_][A-Za-z0-9_]*|0)',value):raise ValueError('Use a net name or 0')
+            if p.kind in ('NPN','PNP','NJF','PJF','NMOS','PMOS','OPAMP','SCR','TRIAC','DIAC','IGBT'):device_model(p.kind,value)
+        except ValueError as e:messagebox.showerror('Component Properties',str(e),parent=self);return
         self.checkpoint();p.value=value;self.render()
     def _line(self,pts,**kw):
         coords=[]
@@ -389,9 +407,14 @@ class Workbench(Instruments, tk.Tk):
             return (x+dx,y+dy)
         def line(pts,**kw):self._line([tf(*z) for z in pts],fill=BLUE,width=max(1.25,1.6*self.scale_factor),**kw)
         kind=p.kind
-        if kind=='R':
+        if kind=='NET':
+            line([(0,0),(40,0)])
+            self.canvas.create_text(*self.xp(tf(46,0)),text=p.value,anchor={0:'w',1:'n',2:'e',3:'s'}[a],fill=BLUE,font=(theme.FAMILY,max(8,int(9*self.scale_factor))))
+            return
+        if kind in ('R','POT'):
             line([(-40,0),(-22,0)]); line([(22,0),(40,0)])
             line([(-22,0),(-22,-9),(22,-9),(22,9),(-22,9),(-22,0)])
+            if kind=='POT':line([(0,40),(0,10)],arrow='last')
         elif kind=='C':
             line([(-40,0),(-6,0)]);line([(6,0),(40,0)])
             line([(-6,-16),(-6,16)]);line([(6,-16),(6,16)])
@@ -402,11 +425,14 @@ class Workbench(Instruments, tk.Tk):
                 cx=-16+i*11
                 px1,py1=self.xp(tf(cx-5,-8));px2,py2=self.xp(tf(cx+5,5))
                 self.canvas.create_oval(min(px1,px2),min(py1,py2),max(px1,px2),max(py1,py2),outline=BLUE,width=1.5)
-        elif kind=='V':
+        elif kind in ('V','I'):
             line([(0,-40),(0,-18)]);line([(0,18),(0,40)])
             x1,y1=self.xp(tf(-18,-18));x2,y2=self.xp(tf(18,18))
             self.canvas.create_oval(min(x1,x2),min(y1,y2),max(x1,x2),max(y1,y2),outline=BLUE,width=2,fill='white')
-            line([(-7,-6),(7,-6)]);line([(0,-12),(0,0)]);line([(-7,8),(7,8)])
+            if kind=='I':line([(0,-10),(0,10)],arrow='last')
+            else:line([(-7,-6),(7,-6)]);line([(0,-12),(0,0)]);line([(-7,8),(7,8)])
+        elif kind=='IPROBE':
+            line([(-40,0),(40,0)],arrow='last')
         elif kind=='GND':
             line([(0,-20),(0,0)]);line([(-15,0),(15,0)]);line([(-10,6),(10,6)]);line([(-5,12),(5,12)])
         elif kind in ('D','LED'):
@@ -419,6 +445,19 @@ class Workbench(Instruments, tk.Tk):
             line([(-12,-14),(20,-30),(20,-40)])
             line([(-12,14),(20,30),(20,40)])
             line([(5,23),(16,28)] if kind=='NPN' else [(12,26),(-5,17)],arrow='last')
+        elif kind in ('NJF','PJF','NMOS','PMOS','IGBT'):
+            line([(-40,0),(-16,0)]);line([(-16,-20),(-16,20)])
+            line([(-8,-20),(-8,20)]);line([(-8,-18),(20,-18),(20,-40)]);line([(-8,18),(20,18),(20,40)])
+            line([(0,18),(15,18)],arrow='last' if kind in ('NJF','NMOS','IGBT') else 'first')
+            if kind in ('NMOS','PMOS'):line([(-8,0),(40,0)])
+        elif kind in ('SCR','TRIAC','DIAC'):
+            if kind=='DIAC':
+                line([(-40,0),(-15,0)]);line([(15,0),(40,0)])
+                line([(-15,-12),(-15,12),(5,0),(-15,-12)]);line([(15,-12),(15,12),(-5,0),(15,-12)])
+            else:
+                line([(0,-40),(0,-15)]);line([(0,15),(0,40)]);line([(-40,20),(0,15)])
+                line([(-12,-15),(12,-15),(0,15),(-12,-15)]);line([(-12,15),(12,15)])
+                if kind=='TRIAC':line([(18,15),(30,-15),(6,-15),(18,15)])
         elif kind=='OPAMP':
             line([(-35,-40),(-35,40),(40,0),(-35,-40)])
             line([(-60,-20),(-35,-20)]);line([(-60,20),(-35,20)]);line([(40,0),(60,0)])
@@ -433,7 +472,7 @@ class Workbench(Instruments, tk.Tk):
         if kind != 'GND':
             # Symbols are labelled independently from schematic wires.
             labpos=tf(0,-78) if kind=='OPAMP' else tf(0,-38) if kind!='V' else tf(34,-12)
-            textpos=tf(0,78) if kind=='OPAMP' else tf(0,58) if kind in ('NPN','PNP') else tf(0,26) if kind!='V' else tf(36,6)
+            textpos=tf(0,78) if kind=='OPAMP' else tf(0,64) if kind in PIN_LABELS else tf(0,26) if kind!='V' else tf(36,6)
             self.canvas.create_text(*self.xp(labpos),text=p.id,anchor='center' if kind!='V' else 'w',fill=INK,font=(theme.FAMILY,max(8,int(10*self.scale_factor)),'bold'))
             self.canvas.create_text(*self.xp(textpos),text=p.value,anchor='center' if kind!='V' else 'w',fill=GREY,font=(theme.FAMILY,max(8,int(9*self.scale_factor))))
         for pt in p.pins():
@@ -445,7 +484,8 @@ class Workbench(Instruments, tk.Tk):
 
     def render(self):
         self.canvas.delete('all')
-        w=int(2100*self.scale_factor);h=int(1500*self.scale_factor)
+        docw=max(2100,max((p.x+160 for p in self.doc.parts),default=0));doch=max(1500,max((p.y+160 for p in self.doc.parts),default=0))
+        w=int(docw*self.scale_factor);h=int(doch*self.scale_factor)
         self.canvas.configure(scrollregion=(0,0,w,h))
         if self.grid_visible:
             g=int(GRID*self.scale_factor)
@@ -455,9 +495,9 @@ class Workbench(Instruments, tk.Tk):
                         self.canvas.create_rectangle(xx,yy,xx+0.6,yy+0.6,outline='#d7d7d7')
         # NI-like worksheet origin rulers; they are original drawing commands.
         self.canvas.create_line(0,0,w,0,fill=OUTLINE)
-        for x in range(0,2101,200):
+        for x in range(0,int(docw)+1,200):
             xx=x*self.scale_factor;self.canvas.create_text(xx+8,12,text=str(x//200+1),fill='#9ba9b8',font=(theme.FAMILY,8),anchor='w')
-        for y in range(0,1501,200):
+        for y in range(0,int(doch)+1,200):
             yy=y*self.scale_factor;self.canvas.create_text(7,yy+26,text=chr(65+(y//200)%26),fill='#9ba9b8',font=(theme.FAMILY,8),anchor='w')
         for wi in self.doc.wires:
             a,b=wi.a,wi.b
@@ -503,6 +543,7 @@ class Workbench(Instruments, tk.Tk):
         except ValueError as e:contents=str(e)
         self.write_panel('results',contents);self.report_tabs.select(0)
     def example(self):
+        self.analysis=Analysis();self.analysis_mode.set('Transient')
         self.result=None;self.stop()
         self.doc=Document('RC Charging Circuit')
         v=self.doc.add('V',300,320,'5')
@@ -530,6 +571,20 @@ class Workbench(Instruments, tk.Tk):
         except (OSError,ValueError) as e:messagebox.showerror('Example',str(e),parent=self);return
         self.stop();self.doc=document;self.result=None;self.timeline=None;self.filepath=None;self.selected=None
         self.history.clear();self.future.clear();self.cancel();self.status('Loaded '+document.title)
+    def course_browser(self):
+        from .course_ui import browser
+        browser(self)
+    def check_experiment(self):
+        from .course_ui import check_experiment
+        check_experiment(self)
+    def run_selected(self):
+        mode=self.analysis_mode.get()
+        if mode=='DC Operating Point':self.dc_analysis()
+        elif mode=='AC Sweep':self.bode()
+        elif mode=='DC Sweep':
+            if self.analysis.kind=='dc':self.start_analysis(self.analysis,self.dc_plot)
+            else:self.dc_sweep()
+        else:self.run()
     def inspect_container(self):
         from .interop import inspect_dialog
         inspect_dialog(self)

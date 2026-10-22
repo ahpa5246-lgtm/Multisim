@@ -1,0 +1,14 @@
+{
+  "passed": [
+    "Named instrument nodes",
+    "Scope A/B cursor delta measurement",
+    "Differential voltage / RMS / source-current meter opened on transient",
+    "Course result checks",
+    "Selected AC input / Bode run",
+    "MOS DC sweep plot",
+    "Current-probe DC meter",
+    "Course browser",
+    "Expanded component picker"
+  ],
+  "platform": "Linux Tk9/Xvfb; Windows unverified"
+}

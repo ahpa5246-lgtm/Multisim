@@ -1,0 +1,72 @@
+test_crossing_not_connected (test_core.WorkbenchTests.test_crossing_not_connected) ... ok
+test_missing_ground (test_core.WorkbenchTests.test_missing_ground) ... ok
+test_network_and_netlist (test_core.WorkbenchTests.test_network_and_netlist) ... ok
+test_rc_response (test_core.WorkbenchTests.test_rc_response) ... ok
+test_roundtrip (test_core.WorkbenchTests.test_roundtrip) ... ok
+test_units (test_core.WorkbenchTests.test_units) ... ok
+test_course_fixtures_cover_every_chapter_and_required_family (test_course.CourseDocumentTests.test_course_fixtures_cover_every_chapter_and_required_family) ... ok
+test_explicit_ac_input_is_not_supply (test_course.CourseDocumentTests.test_explicit_ac_input_is_not_supply) ... ok
+test_invalid_saved_alias_rejected_before_load (test_course.CourseDocumentTests.test_invalid_saved_alias_rejected_before_load) ... ok
+test_named_nets_persist_and_do_not_join_different_names (test_course.CourseDocumentTests.test_named_nets_persist_and_do_not_join_different_names) ... ok
+test_potentiometer_and_alias_invalid_values_rejected (test_course.CourseDocumentTests.test_potentiometer_and_alias_invalid_values_rejected) ... ok
+test_triangle_has_explicit_nonzero_width (test_course.CourseDocumentTests.test_triangle_has_explicit_nonzero_width) ... ok
+test_unknown_diode_model_does_not_silently_become_generic (test_course.CourseDocumentTests.test_unknown_diode_model_does_not_silently_become_generic) ... ok
+test_all_course_experiments (test_course.CourseSolverTests.test_all_course_experiments) ... ok
+test_new_pinned_models_load_in_solver (test_course.CourseSolverTests.test_new_pinned_models_load_in_solver) ... ok
+test_dc_sweep (test_devices.DeviceTests.test_dc_sweep) ... ok
+test_every_adapted_bjt_has_solver_smoke_check (test_devices.DeviceTests.test_every_adapted_bjt_has_solver_smoke_check) ... ok
+test_npn_pnp_bias (test_devices.DeviceTests.test_npn_pnp_bias) ... ok
+test_opamp_follower (test_devices.DeviceTests.test_opamp_follower) ... ok
+test_collector_base_tie_is_valid (test_devices.DiodeConnectionTests.test_collector_base_tie_is_valid) ... ok
+test_library_femto_conversion (test_devices.PersistenceTests.test_library_femto_conversion) ... ok
+test_multiterminal_save_and_rotate (test_devices.PersistenceTests.test_multiterminal_save_and_rotate) ... ok
+test_excessive_sections_rejected (test_interop.InspectorTests.test_excessive_sections_rejected) ... ok
+test_jet_and_unknown_detected_by_header (test_interop.InspectorTests.test_jet_and_unknown_detected_by_header) ... ok
+test_report_cannot_overwrite_original_or_hardlink (test_interop.InspectorTests.test_report_cannot_overwrite_original_or_hardlink) ... ok
+test_section_metadata_and_original_preserved (test_interop.InspectorTests.test_section_metadata_and_original_preserved) ... ok
+test_special_file_rejected (test_interop.InspectorTests.test_special_file_rejected) ... ok
+test_truncated_and_oversized_section_rejected (test_interop.InspectorTests.test_truncated_and_oversized_section_rejected) ... ok
+test_bad_axis_rejected (test_measurements.MeasurementTests.test_bad_axis_rejected) ... ok
+test_dc_and_rms (test_measurements.MeasurementTests.test_dc_and_rms) ... ok
+test_spectrum_peak (test_measurements.MeasurementTests.test_spectrum_peak) ... ok
+test_spectrum_preserves_high_frequency_record (test_measurements.MeasurementTests.test_spectrum_preserves_high_frequency_record) ... ok
+test_directives_rejected (test_spice.CompilerTests.test_directives_rejected) ... ok
+test_invalid_range (test_spice.CompilerTests.test_invalid_range) ... ok
+test_missing_solver_is_error (test_spice.CompilerTests.test_missing_solver_is_error) ... ok
+test_ac_cutoff (test_spice.NgspiceTests.test_ac_cutoff) ... ok
+test_dc_divider (test_spice.NgspiceTests.test_dc_divider) ... ok
+test_diode_is_nonlinear (test_spice.NgspiceTests.test_diode_is_nonlinear) ... ok
+test_rc_and_evidence (test_spice.NgspiceTests.test_rc_and_evidence) ... ok
+test_rl (test_spice.NgspiceTests.test_rl) ... ok
+test_sine_source (test_spice.NgspiceTests.test_sine_source) ... ok
+test_switch_states (test_spice.NgspiceTests.test_switch_states) ... ok
+test_malformed_or_nonfinite_table (test_spice.ResultValidationTests.test_malformed_or_nonfinite_table) ... ok
+test_running_process_can_be_cancelled (test_spice.ResultValidationTests.test_running_process_can_be_cancelled) ... ok
+test_bode_and_meter_panels_use_result (test_workspace.WorkspaceTests.test_bode_and_meter_panels_use_result) ... ok
+test_course_load_analysis_and_alias_rotation (test_workspace.WorkspaceTests.test_course_load_analysis_and_alias_rotation) ... ok
+test_cursor_preview_does_not_change_document (test_workspace.WorkspaceTests.test_cursor_preview_does_not_change_document) ... ok
+test_generator_applies_real_source_and_invalidates_result (test_workspace.WorkspaceTests.test_generator_applies_real_source_and_invalidates_result) ... ok
+test_library_model_selection_and_new_tabs (test_workspace.WorkspaceTests.test_library_model_selection_and_new_tabs) ... ok
+test_multimeter_rejects_sweep_axis (test_workspace.WorkspaceTests.test_multimeter_rejects_sweep_axis) ... ok
+test_rotation_preserves_connected_pins (test_workspace.WorkspaceTests.test_rotation_preserves_connected_pins) ... ok
+test_run_opens_scope_with_real_transient (test_workspace.WorkspaceTests.test_run_opens_scope_with_real_transient) ... ok
+test_sheet_selection_selects_schematic (test_workspace.WorkspaceTests.test_sheet_selection_selects_schematic) ... ok
+test_sheet_tracks_placement_and_undo (test_workspace.WorkspaceTests.test_sheet_tracks_placement_and_undo) ... ok
+test_stop_discards_already_queued_success (test_workspace.WorkspaceTests.test_stop_discards_already_queued_success) ... ok
+test_zoom_and_tool_selection (test_workspace.WorkspaceTests.test_zoom_and_tool_selection) ... ok
+
+----------------------------------------------------------------------
+Ran 56 tests in 14.613s
+
+OK
+test_analytic_waveform (test_rc.RCTest.test_analytic_waveform) ... ok
+test_empty_capture (test_rc.RCTest.test_empty_capture) ... ok
+test_nonfinite (test_rc.RCTest.test_nonfinite) ... ok
+test_reverse_time (test_rc.RCTest.test_reverse_time) ... ok
+test_short_capture (test_rc.RCTest.test_short_capture) ... ok
+test_wrong_waveform (test_rc.RCTest.test_wrong_waveform) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.002s
+
+OK

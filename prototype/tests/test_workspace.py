@@ -127,3 +127,17 @@ class WorkspaceTests(unittest.TestCase):
         with patch('workbench.instruments.messagebox.showinfo') as notice:
             a.multimeter();notice.assert_called_once()
         self.assertFalse(any(w.winfo_class()=='Toplevel' for w in a.winfo_children()))
+
+    def test_course_load_analysis_and_alias_rotation(self):
+        from workbench.course_ui import load_experiment
+        a=self.app
+        self.assertTrue(load_experiment(a,'nmos-divider'))
+        self.assertEqual(a.analysis_mode.get(),'DC Operating Point')
+        p=next(p for p in a.doc.parts if p.kind=='NMOS');a.selected=p.id
+        before=a.doc.networks();old=p.pins();a.rotate();after=a.doc.networks()
+        self.assertNotEqual(p.pins(),old)
+        for i in range(4):self.assertEqual(before[(p.id,i)],after[(p.id,i)])
+        self.assertTrue(load_experiment(a,'npn-frequency'))
+        self.assertEqual(a.analysis.ac_source,'VIN');self.assertEqual(a.analysis_mode.get(),'AC Sweep')
+        a.course_browser();a.update()
+        self.assertTrue(any(w.winfo_class()=='Toplevel' for w in a.winfo_children()))

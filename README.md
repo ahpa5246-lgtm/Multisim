@@ -39,3 +39,14 @@ See [architecture](docs/DESIGN.md), [implementation plan](docs/PLAN.md), [parity
 ## Licensing
 
 Our additions are GPL-2.0-or-later; see LICENSE. Qucs-S retains its original copyright notices and license in upstream/qucs-s/COPYING. Its nested projects retain their own licenses. No code from SimulIDE, Kirho, or the EW decoder has been merged. Preserve notices and provide corresponding source when distributing binaries.
+
+### Electronics II experiments
+
+The Python workbench includes 87 editable course and common student circuits:
+**Tools → Course Experiments** (or toolbar **Experiments**), then **Load and Run**.
+Use **Tools → Check Experiment Results** for explicit numerical checks. New parts
+include JFETs, four-terminal MOSFETs, SCR/DIAC/TRIAC, a limited IGBT equivalent,
+current sources/probes and potentiometers. Named nets persist with the circuit.
+See [course coverage and limits](docs/COURSE_COVERAGE.md) before assuming every
+textbook exercise or NI tool is supported. Run all fixtures with
+`python scripts/verify_course.py --output reports/course --raw`.
