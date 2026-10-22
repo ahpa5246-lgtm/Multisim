@@ -1,0 +1,18 @@
+Open Circuit Workbench - ngspice
+.options reltol=1e-5 abstol=1e-12 vntol=1e-6
+QQ1 1 2 0 QMOD_Q1
+VV1 1 0 DC 5 AC 1
+VV2 2 0 DC 0.65 AC 0
+.model QMOD_Q1 NPN (Is=2.39e-14 Nf=1.008 Nr=1.004 Ikf=0.1357 Ikr=0.1144 Vaf=63.2 Var=25.9 Ise=3.545e-15 Ne=1.541 Isc=6.272e-14 Nc=1.243 Bf=294.3 Br=7.946 Rbm=1 Irb=1e-06 Rc=0.85 Re=0.4683 Rb=1 Cje=1.358e-11 Vje=0.65 Mje=0.3279 Cjc=3.728e-12 Vjc=0.3997 Mjc=0.2955 Xcjc=0.6193 Cjs=0 Vjs=0.75 Mjs=0.333 Fc=0.9579 Tf=4.391e-10 Xtf=120 Vtf=2.643 Itf=0.7495 Tr=1e-32 Kf=0 Af=1 Ptf=0 Xtb=0 Xti=3 Eg=1.11 Tnom=26.85)
+.model OCW_D D(Is=1e-14 N=1)
+.model OCW_LED D(Is=1e-20 N=2)
+.control
+set noaskquit
+set wr_singlescale
+set wr_vecnames
+set numdgt=15
+dc VV1 0 5 0.1
+wrdata result.dat v(1) v(2) i(vV1) i(vV2)
+quit
+.endc
+.end

@@ -1,5 +1,5 @@
 """Run with DISPLAY set (CI uses Xvfb); exercises real Tk widgets."""
-import os, time, shutil
+import os, time, shutil, gc
 import unittest
 from types import SimpleNamespace
 from workbench.app import Workbench
@@ -11,6 +11,10 @@ class WorkspaceTests(unittest.TestCase):
         self.app.update()
     def tearDown(self):
         self.app.destroy()
+        # Finalize Tcl objects on their owning thread before a later solver worker
+        # can trigger cyclic collection of a destroyed test window.
+        self.app = None
+        gc.collect()
     def test_sheet_tracks_placement_and_undo(self):
         a=self.app
         self.assertEqual(len(a.component_sheet.get_children()), 4)

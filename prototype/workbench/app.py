@@ -8,6 +8,7 @@ import math
 import os
 import sys
 import tkinter as tk
+from . import theme
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from pathlib import Path
 from .toolbar import ToolButton
@@ -33,18 +34,24 @@ class Workbench(Instruments, tk.Tk):
         self.timeline = None; self.last_nets = None
         self.result=None;self.analysis=Analysis();self._job=None;self.ngspice_path=None
         self.protocol("WM_DELETE_WINDOW",self.close_workbench)
+        theme.configure(self)
         self._make_style(); self._make_menu(); self._make_layout(); self._keys()
         self.example()
 
     def _make_style(self):
         style=ttk.Style(self)
-        if 'clam' in style.theme_names(): style.theme_use('clam')
-        style.configure('.', font=('Segoe UI',9))
+        if 'vista' in style.theme_names():style.theme_use('vista')
+        elif 'clam' in style.theme_names():style.theme_use('clam')
+        style.configure('.', font=(theme.FAMILY,9))
         style.configure('TFrame',background=BOARD)
         style.configure('Tool.TFrame',background='#f0f1f2')
-        style.configure('TButton',font=('Segoe UI',9),padding=(7,4))
-        style.configure('Treeview',font=('Segoe UI',9),rowheight=21,background='white')
-        style.configure('Treeview.Heading',font=('Segoe UI',9,'bold'))
+        style.configure('TButton',font=(theme.FAMILY,9),padding=(7,4))
+        style.configure('Treeview',font=(theme.FAMILY,9),rowheight=23,background='white')
+        style.configure('Treeview.Heading',font=(theme.FAMILY,9),background='#e8edf3',relief='flat',padding=(6,4))
+        style.map('Treeview',background=[('selected','#cbdff5')],foreground=[('selected','#172f4b')])
+        style.configure('TNotebook.Tab',background='#e8edf3')
+        style.map('TNotebook.Tab',background=[('selected','#ffffff')])
+        style.configure('TCombobox',padding=2)
         style.configure('TNotebook',background=BOARD)
         style.configure('TNotebook.Tab',padding=(10,3))
         style.configure('TLabel', background=BOARD)
@@ -57,7 +64,7 @@ class Workbench(Instruments, tk.Tk):
             'View':[('Zoom In',lambda:self.zoom(1.25)),('Zoom Out',lambda:self.zoom(.8)),('Zoom to Fit',self.fit),('Show Grid',self.toggle_grid)],
             'Place':[('Resistor',lambda:self.set_mode('R')),('Capacitor',lambda:self.set_mode('C')),('Inductor',lambda:self.set_mode('L')),('DC Voltage',lambda:self.set_mode('V')),('Ground',lambda:self.set_mode('GND')),('Diode',lambda:self.set_mode('D')),('LED',lambda:self.set_mode('LED')),('Switch',lambda:self.set_mode('SW')),None,('Wire',lambda:self.set_mode('wire'))],
             'Simulate':[('Run Transient',self.run),('DC Operating Point',self.dc_analysis),('DC Sweep / I–V...',self.dc_sweep),('AC Sweep / Bode',self.bode),('Analysis Settings...',self.analysis_settings),('Stop',self.stop),None,('Oscilloscope',self.scope),('Multimeter',self.multimeter),('Function Generator',self.generator),('Logic Traces',self.logic),('Voltage Spectrum',self.spectrum_panel),('Export Simulation Data...',self.export_results),None,('Load RC Example',self.example),('Load Op-Amp Example',lambda:self.load_demo('opamp-follower.ocw.json')),('Load Transistor Example',lambda:self.load_demo('bjt-characteristic.ocw.json'))],
-            'Tools':[('Components Browser',self.component_browser),('Project Information',self.project_info),('Electrical Rule Check',lambda:self.report_tabs.select(6))],
+            'Tools':[('Components Browser',self.component_browser),('Inspect EW/Multisim Container...',self.inspect_container),('Project Information',self.project_info),('Electrical Rule Check',lambda:self.report_tabs.select(6))],
             'Reports':[('Netlist Preview',self.preview_netlist)],
             'Options':[('Grid Snap',self.toggle_snap),('Locate ngspice executable...',self.locate_ngspice)],
             'Window':[('Reset Workspace',self.reset_workspace)],
@@ -97,8 +104,8 @@ class Workbench(Instruments, tk.Tk):
         zoom.bind('<<ComboboxSelected>>',lambda e:self.zoom(float(self.zoom_value.get().strip('%'))/100/self.scale_factor))
         self._separator(head)
         self._tool(head,'run',self.run,'Run transient analysis (F5)')
-        self._tool(head,'stop',self.stop,'Stop — solver runs synchronously')
-        tk.Label(head,text='Transient analysis',bg='#f0f0f0',fg='#444',font=('Segoe UI',9)).pack(side='left',padx=8)
+        self._tool(head,'stop',self.stop,'Stop ngspice simulation')
+        tk.Label(head,text='Transient analysis',bg='#f0f0f0',fg='#444',font=(theme.FAMILY,9)).pack(side='left',padx=8)
         self.hint=tk.StringVar(value='Ready')
         second=tk.Frame(self,bg='#f0f0f0',bd=1,relief='raised');second.pack(fill='x')
         self._tool(second,'select',self.cancel,'Select (Esc)',key='select')
@@ -111,24 +118,24 @@ class Workbench(Instruments, tk.Tk):
         self._separator(second)
         self._tool(second,'rotate',self.rotate,'Rotate selected (Ctrl+R)')
         self._tool(second,'probe',self.probe,'Read simulated node voltages')
-        tk.Label(second,text='In use:',bg='#f0f0f0',font=('Segoe UI',9)).pack(side='left',padx=(16,4))
+        tk.Label(second,text='In use:',bg='#f0f0f0',font=(theme.FAMILY,9)).pack(side='left',padx=(16,4))
         self.in_use=ttk.Combobox(second,state='readonly',width=22);self.in_use.pack(side='left',padx=4)
         self.in_use.bind('<<ComboboxSelected>>',self.select_in_use)
         body=ttk.PanedWindow(self,orient=tk.HORIZONTAL);body.pack(fill='both',expand=True)
         left=ttk.Frame(body,width=185);body.add(left,weight=0)
-        title=tk.Frame(left,bg='#d8dfe8');title.pack(fill='x')
-        tk.Label(title,text='Design Toolbox',bg='#d8dfe8',fg='#243449',font=('Segoe UI',9,'bold'),anchor='w').pack(fill='x',padx=6,pady=4)
+        title=tk.Frame(left,bg='#dfe8f3');title.pack(fill='x')
+        tk.Label(title,text='Design Toolbox',bg='#dfe8f3',fg='#243449',font=(theme.FAMILY,9,'bold'),anchor='w').pack(fill='x',padx=6,pady=4)
         tools=ttk.Notebook(left);tools.pack(fill='both',expand=True)
         hierarchy=ttk.Frame(tools);tools.add(hierarchy,text='Hierarchy')
         self.tree=ttk.Treeview(hierarchy,show='tree',selectmode='browse');self.tree.pack(fill='both',expand=True)
         self.tree.bind('<<TreeviewSelect>>',self.on_tree_select)
         components=ttk.Frame(tools);tools.add(components,text='Components')
-        self.parts_list=tk.Listbox(components,relief='flat',bg='white',font=('Segoe UI',9),highlightthickness=0)
+        self.parts_list=tk.Listbox(components,relief='flat',bg='white',font=(theme.FAMILY,9),highlightthickness=0)
         self.parts_list.pack(fill='both',expand=True);self.parts_list.bind('<Double-Button-1>',self.list_place)
         for label in ['Resistor  (R)','Capacitor  (C)','Inductor  (L)','DC Voltage  (V)','Ground  (GND)','Diode  (D)','LED','Switch  (SW)']:self.parts_list.insert('end',label)
         middle=ttk.Frame(body);body.add(middle,weight=5)
         docbar=tk.Frame(middle,bg='#d6d6d6',height=27);docbar.pack(fill='x')
-        self.doclabel=tk.Label(docbar,text='Design1',bg='white',fg='#222',font=('Segoe UI',9),padx=14,pady=4,relief='ridge',bd=1)
+        self.doclabel=tk.Label(docbar,text='Design1',bg='white',fg='#222',font=(theme.FAMILY,9),padx=14,pady=4,relief='ridge',bd=1)
         self.doclabel.pack(side='left',padx=(2,0),pady=(2,0))
         vertical=ttk.PanedWindow(middle,orient=tk.VERTICAL);vertical.pack(fill='both',expand=True)
         workspace=ttk.Frame(vertical);vertical.add(workspace,weight=5)
@@ -144,7 +151,7 @@ class Workbench(Instruments, tk.Tk):
         self.canvas.bind('<Button-4>',lambda ev:self.zoom(1.1));self.canvas.bind('<Button-5>',lambda ev:self.zoom(.9))
         self.canvas.bind('<ButtonPress-2>',lambda e:self.canvas.scan_mark(e.x,e.y));self.canvas.bind('<B2-Motion>',lambda e:self.canvas.scan_dragto(e.x,e.y,gain=1))
         results_frame=ttk.Frame(vertical,height=165);vertical.add(results_frame,weight=1)
-        tk.Label(results_frame,text='Spreadsheet View',anchor='w',bg='#d8dfe8',fg='#243449',font=('Segoe UI',9,'bold'),padx=6,pady=3).pack(fill='x')
+        tk.Label(results_frame,text='Spreadsheet View',anchor='w',bg='#dfe8f3',fg='#243449',font=(theme.FAMILY,9,'bold'),padx=6,pady=3).pack(fill='x')
         results=ttk.Notebook(results_frame,height=118);results.pack(fill='both',expand=True);self.report_tabs=results
         for label in ['Results','Nets','Components','Simulation','Models','BOM','Diagnostics']:
             f=ttk.Frame(results);results.add(f,text=label)
@@ -156,7 +163,7 @@ class Workbench(Instruments, tk.Tk):
                 self.component_sheet.bind('<<TreeviewSelect>>',self.select_sheet)
                 self.component_sheet.bind('<Double-1>',lambda e:self.properties())
             else:
-                t=tk.Text(f,height=4,wrap='word',font=('Consolas',9),bg='white',fg=INK,relief='flat',padx=5,pady=4)
+                t=tk.Text(f,height=4,wrap='word',font=(theme.MONO,9),bg='white',fg=INK,relief='flat',padx=5,pady=4)
                 t.pack(fill='both',expand=True);t.config(state='disabled');setattr(self,'panel_'+label.lower(),t)
         right=tk.Frame(body,width=36,bg='#f0f0f0',bd=1,relief='raised');body.add(right,weight=0)
         for icon,cmd,label,disabled in [('meter',self.multimeter,'Multimeter: simulated DC node readings',False),
@@ -164,8 +171,8 @@ class Workbench(Instruments, tk.Tk):
                 ('bode',self.bode,'Bode: AC small-signal analysis',False),('logic',self.logic,'Logic traces: threshold sampled analog voltages',False),('spectrum',self.spectrum_panel,'Sampled voltage spectrum',False),
                 ('probe',self.probe,'Read simulated node voltages',False)]:self._tool(right,icon,cmd,label,disabled=disabled,vertical=True)
         bottom=tk.Frame(self,bg='#f0f0f0',bd=1,relief='sunken');bottom.pack(side='bottom',fill='x',before=body)
-        tk.Label(bottom,textvariable=self.hint,bg='#f0f0f0',fg='#333',anchor='w',font=('Segoe UI',9)).pack(side='left',padx=6,pady=3)
-        self.coordlabel=tk.Label(bottom,text='X: 0  Y: 0',bg='#f0f0f0',font=('Segoe UI',9));self.coordlabel.pack(side='right',padx=8)
+        tk.Label(bottom,textvariable=self.hint,bg='#f0f0f0',fg='#333',anchor='w',font=(theme.FAMILY,9)).pack(side='left',padx=6,pady=3)
+        self.coordlabel=tk.Label(bottom,text='X: 0  Y: 0',bg='#f0f0f0',font=(theme.FAMILY,9));self.coordlabel.pack(side='right',padx=8)
         self.history=[];self.future=[];self.tool_buttons['select'].selected(True)
         self.report_tabs.select(2)
 
@@ -427,8 +434,8 @@ class Workbench(Instruments, tk.Tk):
             # Symbols are labelled independently from schematic wires.
             labpos=tf(0,-78) if kind=='OPAMP' else tf(0,-38) if kind!='V' else tf(34,-12)
             textpos=tf(0,78) if kind=='OPAMP' else tf(0,58) if kind in ('NPN','PNP') else tf(0,26) if kind!='V' else tf(36,6)
-            self.canvas.create_text(*self.xp(labpos),text=p.id,anchor='center' if kind!='V' else 'w',fill=INK,font=('Segoe UI',max(8,int(10*self.scale_factor)),'bold'))
-            self.canvas.create_text(*self.xp(textpos),text=p.value,anchor='center' if kind!='V' else 'w',fill=GREY,font=('Segoe UI',max(8,int(9*self.scale_factor))))
+            self.canvas.create_text(*self.xp(labpos),text=p.id,anchor='center' if kind!='V' else 'w',fill=INK,font=(theme.FAMILY,max(8,int(10*self.scale_factor)),'bold'))
+            self.canvas.create_text(*self.xp(textpos),text=p.value,anchor='center' if kind!='V' else 'w',fill=GREY,font=(theme.FAMILY,max(8,int(9*self.scale_factor))))
         for pt in p.pins():
             px,py=self.xp(pt);r=max(2.2,2.7*self.scale_factor)
             self.canvas.create_oval(px-r,py-r,px+r,py+r,fill=BLUE,outline='white',width=1)
@@ -445,13 +452,13 @@ class Workbench(Instruments, tk.Tk):
             if g>=8:
                 for xx in range(0,w+1,g):
                     for yy in range(0,h+1,g):
-                        self.canvas.create_rectangle(xx,yy,xx+0.6,yy+0.6,outline='#d3dce5')
+                        self.canvas.create_rectangle(xx,yy,xx+0.6,yy+0.6,outline='#d7d7d7')
         # NI-like worksheet origin rulers; they are original drawing commands.
         self.canvas.create_line(0,0,w,0,fill=OUTLINE)
         for x in range(0,2101,200):
-            xx=x*self.scale_factor;self.canvas.create_text(xx+8,12,text=str(x//200+1),fill='#9ba9b8',font=('Segoe UI',8),anchor='w')
+            xx=x*self.scale_factor;self.canvas.create_text(xx+8,12,text=str(x//200+1),fill='#9ba9b8',font=(theme.FAMILY,8),anchor='w')
         for y in range(0,1501,200):
-            yy=y*self.scale_factor;self.canvas.create_text(7,yy+26,text=chr(65+(y//200)%26),fill='#9ba9b8',font=('Segoe UI',8),anchor='w')
+            yy=y*self.scale_factor;self.canvas.create_text(7,yy+26,text=chr(65+(y//200)%26),fill='#9ba9b8',font=(theme.FAMILY,8),anchor='w')
         for wi in self.doc.wires:
             a,b=wi.a,wi.b
             route=[a,(b[0],a[1]),b] if a[0]!=b[0] and a[1]!=b[1] else [a,b]
@@ -523,6 +530,9 @@ class Workbench(Instruments, tk.Tk):
         except (OSError,ValueError) as e:messagebox.showerror('Example',str(e),parent=self);return
         self.stop();self.doc=document;self.result=None;self.timeline=None;self.filepath=None;self.selected=None
         self.history.clear();self.future.clear();self.cancel();self.status('Loaded '+document.title)
+    def inspect_container(self):
+        from .interop import inspect_dialog
+        inspect_dialog(self)
     def component_browser(self):
         from .library_ui import component_browser
         component_browser(self)
