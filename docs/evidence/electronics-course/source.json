@@ -1,0 +1,9 @@
+{
+  "source": "User-supplied Electronics II course PDF",
+  "sha256": "5566de241175284f1e08858749829e640aa51c2f1e932efbabd6d2a4e7fe68a4",
+  "PDF_pages": 113,
+  "printed_page_offset": 2,
+  "upstream_Qucs_S": "46e47e8fabe852a9d6aab41d8a612ff5a78370c1",
+  "solver": "ngspice 42 on Linux",
+  "limitations": "No NI binary/reference exports; topology coverage is not exhaustive numerical-exercise reproduction."
+}

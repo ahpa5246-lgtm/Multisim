@@ -10,14 +10,24 @@ from pathlib import Path
 
 GRID = 20
 PINS = {
+    'NJF':[(20,-40),(-40,0),(20,40)], 'PJF':[(20,-40),(-40,0),(20,40)],
+    'NMOS':[(20,-40),(-40,0),(20,40),(40,0)], 'PMOS':[(20,-40),(-40,0),(20,40),(40,0)],
+    'IGBT':[(20,-40),(-40,0),(20,40)],
+    'SCR':[(0,-40),(-40,20),(0,40)], 'TRIAC':[(0,-40),(-40,20),(0,40)],
+    'IPROBE':[(-40,0),(40,0)],'DIAC':[(-40,0),(40,0)], 'I':[(0,-40),(0,40)], 'POT':[(-40,0),(40,0),(0,40)],
     'NPN':[(20,-40),(-40,0),(20,40)], 'PNP':[(20,-40),(-40,0),(20,40)],
     'OPAMP':[(-60,-20),(-60,20),(0,-60),(0,60),(60,0)],
     'R': [(-40, 0), (40, 0)], 'C': [(-40, 0), (40, 0)],
     'L': [(-40, 0), (40, 0)], 'V': [(0, -40), (0, 40)],
-    'GND': [(0, -20)], 'D': [(-40, 0), (40, 0)],
+    'NET':[(0,0)], 'GND': [(0, -20)], 'D': [(-40, 0), (40, 0)],
     'LED': [(-40, 0), (40, 0)], 'SW': [(-40, 0), (40, 0)],
 }
-DEFAULTS = {'NPN':('BC547B',''), 'PNP':('BC557B',''), 'OPAMP':('LM358',''),'R': ('1k', 'Ω'), 'C': ('1u', 'F'), 'L': ('10m', 'H'),
+PIN_LABELS={'NPN':'C / B / E','PNP':'C / B / E','NJF':'D / G / S','PJF':'D / G / S',
+    'NMOS':'D / G / S / B','PMOS':'D / G / S / B','IGBT':'C / G / E','SCR':'A / G / K','TRIAC':'MT2 / G / MT1',
+    'DIAC':'MT2 / MT1','OPAMP':'+ / − / VCC / VEE / OUT','POT':'A / B / Wiper','I':'+ / −','GND':'Reference'}
+DEFAULTS = {'IPROBE':('Current probe',''),'NET':('net1',''),'NJF':('Course_NJF',''),'PJF':('Course_PJF',''),'NMOS':('Course_NMOS',''),'PMOS':('Course_PMOS',''),
+            'IGBT':('Course_IGBT',''),'SCR':('2N1595',''),'DIAC':('DB3',''),'TRIAC':('L6008L6',''),
+            'I':('1m','A'),'POT':('10k:0.5',''),'NPN':('BC547B',''), 'PNP':('BC557B',''), 'OPAMP':('LM358',''),'R': ('1k', 'Ω'), 'C': ('1u', 'F'), 'L': ('10m', 'H'),
             'V': ('5', 'V'), 'GND': ('', ''), 'D': ('1N4148', ''),
             'LED': ('Red', ''), 'SW': ('Open', '')}
 PREFIX = {'f':1e-15, 'a':1e-18, 'p': 1e-12, 'n': 1e-9, 'u': 1e-6, 'µ': 1e-6,
@@ -70,7 +80,8 @@ class Document:
 
     def next_name(self, kind):
         taken = {p.id for p in self.parts}
-        prefix = {'GND': 'GND', 'V': 'V', 'R': 'R', 'C': 'C', 'L': 'L',
+        prefix = {'IPROBE':'PR','NET':'N','GND': 'GND', 'V': 'V', 'R': 'R', 'C': 'C', 'L': 'L',
+                  'I':'I','POT':'RP','NJF':'J','PJF':'J','NMOS':'M','PMOS':'M','IGBT':'U','SCR':'U','TRIAC':'U','DIAC':'U',
                   'D': 'D', 'LED': 'LED', 'SW': 'S', 'NPN':'Q', 'PNP':'Q', 'OPAMP':'U'}[kind]
         i = 1
         while f'{prefix}{i}' in taken: i += 1
@@ -109,6 +120,9 @@ class Document:
         for p in data.get('parts', []):
             if p['kind'] not in PINS or int(p['rotation']) % 90:
                 raise ValueError('Invalid component')
+            if p['kind']=='NET':
+                import re
+                if not re.fullmatch(r'(?:[A-Za-z_][A-Za-z0-9_]*|0)',p['value']):raise ValueError('Invalid net alias')
             parts.append(Part(**p))
         wires = []
         for w in data.get('wires', []):
@@ -162,6 +176,13 @@ class Document:
                 key = (part.id, i)
                 coords[key] = xy
                 union(key, ('xy', *xy))
+        # Same-name net aliases join electrically across the worksheet.
+        import re
+        for part in self.parts:
+            if part.kind=='NET':
+                if not re.fullmatch(r'(?:[A-Za-z_][A-Za-z0-9_]*|0)',part.value):raise ValueError('Net alias must be a name or 0')
+                union((part.id,0),('net',part.value))
+            elif part.kind=='GND':union((part.id,0),('net','0'))
         segs = []
         for wi, wire in enumerate(self.wires):
             a, b = wire.a, wire.b

@@ -21,3 +21,14 @@ interop.py adapts the format headers and section layout from
 https://github.com/cinderblock/electronics-workbench-decoder at
 cb9c13bc6131488bf0c6ac15505d54b4a7e3aa2a. Cameron Tacklind (C) 2021–2026,
 ISC; full notice in COPYING.ew-decoder. No decompressor or XML mapper is shipped.
+
+## Electronics II extensions
+
+scripts/import_course_devices.py adapts selected JFETs.lib, MOSFETs.lib and
+Diodes.lib values using property ordering / ngspice exclusions from jfet.cpp,
+mosfet_sub.cpp and diode.cpp (Michael Margraf and contributors; pinned Qucs-S,
+GPL-2.0-or-later). Three complete Thyristor.lib subcircuit blocks (2N1595, DB3,
+L6008L6) retain embedded model notices. Model parameter and instance L/W mapping
+is explicit. Full Qucs-S COPYING remains shipped; corresponding source is pinned
+in upstream/qucs-s. Original Course_* entries are separately labelled educational
+approximations; they are not manufacturer-characterized devices.

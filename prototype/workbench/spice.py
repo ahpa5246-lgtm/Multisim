@@ -1,9 +1,10 @@
 """Restricted schematic-to-ngspice adapter. Requires a separately installed ngspice.
 
-No third-party engine code is vendored. All semiconductor models below are
-original generic educational models, NOT manufacturer-characterized devices.
+No third-party engine code is vendored. Catalog model cards derive from the
+pinned Qucs-S source with notices; Course_* and generic primitives are explicitly
+labelled educational approximations, not manufacturer-characterized devices.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass,field
 import csv
 import math
 import os
@@ -14,7 +15,7 @@ import subprocess
 import tempfile
 import threading
 from .core import numeric
-from .devices import device_model
+from .devices import device_model, MODELS
 
 
 def number(value):
@@ -33,6 +34,10 @@ def source_value(value):
         if len(vals)!=3 or vals[2]<=0:raise ValueError('Use SIN(offset amplitude positive_frequency)')
     elif len(vals)!=7 or min(vals[2:6])<0 or vals[6]<=0 or sum(vals[3:6])>vals[6]*(1+1e-10):
         raise ValueError('Use PULSE(low high delay rise fall width period); timing must fit the positive period')
+    if kind=='PULSE' and vals[5]==0:
+        # ngspice treats literal zero pulse width as its default, not a triangle.
+        vals[5]=vals[6]*1e-6
+        vals[4]=max(0,vals[4]-vals[5])
     return f"{kind}({' '.join(f'{x:.12g}' for x in vals)}) AC 1"
 
 @dataclass(frozen=True)
@@ -42,6 +47,8 @@ class Analysis:
     points:int=1000
     start:float=10
     stop:float=1e6
+    ac_source:str=''
+    use_initial_conditions:bool=True
     sweep_source:str=''
     sweep_start:float=0
     sweep_stop:float=5
@@ -64,6 +71,7 @@ class Result:
     deck:str
     log:str
     table:str
+    labels:dict=field(default_factory=dict)
     def export(self,path):
         path=Path(path);path.mkdir(parents=True,exist_ok=True)
         (path/'circuit.cir').write_text(self.deck,encoding='utf-8')
@@ -83,19 +91,24 @@ def compile_deck(doc,analysis):
     if not nodes:raise ValueError('Circuit has no non-ground nodes')
     lines=['Open Circuit Workbench - ngspice', '.options reltol=1e-5 abstol=1e-12 vntol=1e-6']
     sources=[];model_cards=[]
+    voltage_refs=[p.id for p in doc.parts if p.kind=='V']
+    excitation=analysis.ac_source or (voltage_refs[0] if voltage_refs else '')
+    if analysis.kind=='ac' and excitation not in voltage_refs:raise ValueError('Select an existing voltage source for AC excitation')
     if len({p.id.lower() for p in doc.parts})!=len(doc.parts):raise ValueError('Component references must be unique ignoring case')
     for p in doc.parts:
-        if p.kind=='GND':continue
+        if p.kind in ('GND','NET'):continue
         if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*',p.id):raise ValueError('Invalid component reference')
-        if p.kind in ('NPN','PNP','OPAMP'):
+        if p.kind in ('NPN','PNP','NJF','PJF','NMOS','PMOS','OPAMP','SCR','TRIAC','DIAC','IGBT') or (p.kind=='D' and p.value in MODELS):
             model=device_model(p.kind,p.value);pins=[nets[(p.id,i)] for i in range(len(p.pins()))]
-            if p.kind=='OPAMP':
-                if pins[2]==pins[3]:raise ValueError('Op-amp supply pins must differ')
+            if 'subckt' in model:
+                if p.kind=='OPAMP' and pins[2]==pins[3]:raise ValueError('Op-amp supply pins must differ')
                 lines.append(f'X{p.id} 0 '+ ' '.join(pins)+' '+model['subckt'])
                 if model['spice'] not in model_cards:model_cards.append(model['spice'])
             else:
-                name='QMOD_'+p.id
-                lines.append(f'Q{p.id} '+ ' '.join(pins)+' '+name)
+                prefix={'NPN':'Q','PNP':'Q','NJF':'J','PJF':'J','NMOS':'M','PMOS':'M','D':'D'}[p.kind]
+                name=prefix+'MOD_'+p.id
+                instance=' '.join(f'{k}={v:.15g}' for k,v in model.get('instance',{}).items())
+                lines.append(f'{prefix}{p.id} '+ ' '.join(pins)+' '+name+' '+instance)
                 params=' '.join(f'{k}={v:.15g}' for k,v in model['parameters'].items())
                 model_cards.append(f'.model {name} {p.kind} ({params})')
             continue
@@ -105,24 +118,35 @@ def compile_deck(doc,analysis):
             v=number(p.value)
             if v<=0:raise ValueError(f'{p.id} requires a positive value')
             lines.append(f'{p.kind}{p.id} {a} {b} {v:.12g}')
+        elif p.kind=='POT':
+            try:resistance,position=map(number,p.value.split(':'))
+            except ValueError as e:raise ValueError('Potentiometer: total_ohms:position (0 to 1)') from e
+            if resistance<=0 or not 0<=position<=1:raise ValueError('Invalid potentiometer resistance/position')
+            w=nets[(p.id,2)]
+            lines.extend([f'R{p.id}A {a} {w} {max(.001,resistance*position):.12g}',f'R{p.id}B {w} {b} {max(.001,resistance*(1-position)):.12g}'])
+        elif p.kind=='I':
+            lines.append(f'I{p.id} {a} {b} '+source_value(p.value).replace('AC 1','AC 0'))
+        elif p.kind=='IPROBE':
+            lines.append(f'V{p.id} {a} {b} DC 0 AC 0');sources.append(p.id)
         elif p.kind=='V':
-            value=source_value(p.value).replace('AC 1','AC 0' if sources else 'AC 1')
+            value=source_value(p.value).replace('AC 1','AC 1' if p.id==excitation else 'AC 0')
             lines.append(f'V{p.id} {a} {b} {value}');sources.append(p.id)
         elif p.kind in ('D','LED'):
-            # Old projects may label these 1N4148/Red; values are display labels.
+            if p.kind=='D' and p.value!='Generic':raise ValueError(f'Unknown diode model: {p.value}; select a library model or Generic')
+            if p.kind=='LED' and p.value not in ('Red','Generic'):raise ValueError('LED supports Red / Generic educational model only')
             lines.append(f'D{p.id} {a} {b} OCW_{p.kind}')
         elif p.kind=='SW':
             if p.value.lower() not in ('open','closed'):raise ValueError('Switch value must be Open or Closed')
             lines.append(f'R{p.id} {a} {b} '+('1e12' if p.value.lower()=='open' else '0.001'))
         else:raise ValueError(f'Unsupported component: {p.kind}')
-    if not sources:raise ValueError('Add a voltage source')
     lines+=model_cards
     lines+=['.model OCW_D D(Is=1e-14 N=1)', '.model OCW_LED D(Is=1e-20 N=2)', '.control','set noaskquit','set wr_singlescale','set wr_vecnames','set numdgt=15']
-    if analysis.kind=='tran':lines.append(f'tran {analysis.duration/analysis.points:.12g} {analysis.duration:.12g} uic')
+    if analysis.kind=='tran':lines.append(f'tran {analysis.duration/analysis.points:.12g} {analysis.duration:.12g}'+(' uic' if analysis.use_initial_conditions else ''))
     elif analysis.kind=='ac':lines.append(f'ac dec {analysis.points} {analysis.start:.12g} {analysis.stop:.12g}')
     elif analysis.kind=='dc':
-        source=analysis.sweep_source or sources[0]
-        if source not in sources:raise ValueError('Select an existing voltage source for DC sweep')
+        if not voltage_refs:raise ValueError('DC sweep requires a voltage source')
+        source=analysis.sweep_source or voltage_refs[0]
+        if source not in voltage_refs:raise ValueError('Select an existing voltage source for DC sweep')
         lines.append(f'dc V{source} {analysis.sweep_start:.12g} {analysis.sweep_stop:.12g} {analysis.sweep_step:.12g}')
     else:lines.append('op')
     vectors=[f'v({n})' for n in nodes]+[f'i(v{s})' for s in sources]
@@ -176,4 +200,4 @@ class Engine:
             if analysis.kind=='tran' and (len(axis)<2 or axis[-1]<analysis.duration*.999):raise ValueError('Incomplete transient data')
             if analysis.kind=='op':axis=[0.0]
             volts=dict(zip(nodes,vectors[:len(nodes)]));volts['0']=[0.0]*len(axis)
-            return Result(analysis,axis,volts,dict(zip(sources,vectors[len(nodes):])),nets,deck,log,table)
+            return Result(analysis,axis,volts,dict(zip(sources,vectors[len(nodes):])),nets,deck,log,table,{p.value:nets[(p.id,0)] for p in doc.parts if p.kind=='NET'})

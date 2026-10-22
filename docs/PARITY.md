@@ -36,3 +36,13 @@ The Python UI now uses real ngspice for its Run/DC/AC actions. Its earlier educa
 ## Device-library milestone — 2026-10-22
 
 1,229 adapted Qucs-S library entries: 1,226 BJT models solver-smoke-checked, three op-amp models follower-tested. Three-/five-pin native capture, selection, placement and persistence are implemented. Models/BOM/basic connectivity diagnostics and single-source DC sweeps are implemented. This does not establish manufacturer-characteristic or full Multisim parity. Source/license and 18 skipped input entries are preserved in the generated catalog and notices; interoperability research is separate.
+
+## Electronics II milestone
+
+87 course/student fixtures execute with real ngspice, with DC/current, transfer,
+frequency, timed waveform and calculus checks. New JFET/MOSFET/thyristor paths,
+limited educational IGBT, named nets, current source/probe and potentiometer are
+implemented. Native experiment browser, analysis selector, AC-source choice and
+scope cursors are exercised on Linux. Detailed per-page coverage and explicit
+unreproduced numerical exercises are in COURSE_COVERAGE.md. This is not full
+Multisim or manufacturer-model parity; Windows/NI references remain unverified.
