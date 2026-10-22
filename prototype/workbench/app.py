@@ -56,8 +56,8 @@ class Workbench(Instruments, tk.Tk):
             'Edit':[('Undo',self.undo),('Redo',self.redo),None,('Delete Selected',self.delete_selected),('Rotate Selected',self.rotate),('Properties',self.properties)],
             'View':[('Zoom In',lambda:self.zoom(1.25)),('Zoom Out',lambda:self.zoom(.8)),('Zoom to Fit',self.fit),('Show Grid',self.toggle_grid)],
             'Place':[('Resistor',lambda:self.set_mode('R')),('Capacitor',lambda:self.set_mode('C')),('Inductor',lambda:self.set_mode('L')),('DC Voltage',lambda:self.set_mode('V')),('Ground',lambda:self.set_mode('GND')),('Diode',lambda:self.set_mode('D')),('LED',lambda:self.set_mode('LED')),('Switch',lambda:self.set_mode('SW')),None,('Wire',lambda:self.set_mode('wire'))],
-            'Simulate':[('Run Transient',self.run),('DC Operating Point',self.dc_analysis),('AC Sweep / Bode',self.bode),('Analysis Settings...',self.analysis_settings),('Stop',self.stop),None,('Oscilloscope',self.scope),('Multimeter',self.multimeter),('Function Generator',self.generator),('Logic Traces',self.logic),('Voltage Spectrum',self.spectrum_panel),('Export Simulation Data...',self.export_results),None,('Load RC Example',self.example)],
-            'Tools':[('Components Browser',self.component_browser),('Project Information',self.project_info)],
+            'Simulate':[('Run Transient',self.run),('DC Operating Point',self.dc_analysis),('DC Sweep / I–V...',self.dc_sweep),('AC Sweep / Bode',self.bode),('Analysis Settings...',self.analysis_settings),('Stop',self.stop),None,('Oscilloscope',self.scope),('Multimeter',self.multimeter),('Function Generator',self.generator),('Logic Traces',self.logic),('Voltage Spectrum',self.spectrum_panel),('Export Simulation Data...',self.export_results),None,('Load RC Example',self.example),('Load Op-Amp Example',lambda:self.load_demo('opamp-follower.ocw.json')),('Load Transistor Example',lambda:self.load_demo('bjt-characteristic.ocw.json'))],
+            'Tools':[('Components Browser',self.component_browser),('Project Information',self.project_info),('Electrical Rule Check',lambda:self.report_tabs.select(6))],
             'Reports':[('Netlist Preview',self.preview_netlist)],
             'Options':[('Grid Snap',self.toggle_snap),('Locate ngspice executable...',self.locate_ngspice)],
             'Window':[('Reset Workspace',self.reset_workspace)],
@@ -146,7 +146,7 @@ class Workbench(Instruments, tk.Tk):
         results_frame=ttk.Frame(vertical,height=165);vertical.add(results_frame,weight=1)
         tk.Label(results_frame,text='Spreadsheet View',anchor='w',bg='#d8dfe8',fg='#243449',font=('Segoe UI',9,'bold'),padx=6,pady=3).pack(fill='x')
         results=ttk.Notebook(results_frame,height=118);results.pack(fill='both',expand=True);self.report_tabs=results
-        for label in ['Results','Nets','Components','Simulation']:
+        for label in ['Results','Nets','Components','Simulation','Models','BOM','Diagnostics']:
             f=ttk.Frame(results);results.add(f,text=label)
             if label=='Components':
                 self.component_sheet=ttk.Treeview(f,columns=('ref','value','type','rotation'),show='headings',selectmode='browse',height=4)
@@ -210,6 +210,17 @@ class Workbench(Instruments, tk.Tk):
         self.in_use['values']=[f'{p.id}  {p.value}' for p in self.doc.parts]
         self.in_use.set(next((f'{p.id}  {p.value}' for p in self.doc.parts if p.id==self.selected),''))
         self.write_panel('nets','\n'.join(f'{k[0]} pin {k[1]+1}: node {v}' for k,v in self.doc.networks().items()))
+        from .devices import MODELS
+        from collections import Counter
+        self.write_panel('models','\n\n'.join(f'{p.id}: {p.value} — {MODELS[p.value]["source"]}\n{MODELS[p.value]["description"]}' for p in self.doc.parts if p.kind in ('NPN','PNP','OPAMP') and p.value in MODELS))
+        counts=Counter((p.kind,p.value) for p in self.doc.parts)
+        self.write_panel('bom','Quantity  Type  Value / Model\n'+'\n'.join(f'{count:8}  {kind:6}  {value}' for (kind,value),count in sorted(counts.items())))
+        nets=self.doc.networks();contacts=Counter(nets.values());warnings=[]
+        if '0' not in contacts:warnings.append('ERROR: missing ground reference')
+        for (part,pin),node in nets.items():
+            if contacts[node]==1:warnings.append(f'WARNING: {part} pin {pin+1} is the only component terminal on node {node}')
+        self.write_panel('diagnostics','\n'.join(warnings) or 'No isolated terminals detected. This connectivity check does not validate models, ratings or circuit function.')
+
 
     def write_panel(self,tab,text):
         widget=getattr(self,'panel_'+tab)
@@ -238,7 +249,7 @@ class Workbench(Instruments, tk.Tk):
             self.history.append(self.doc.to_dict())
             self.restore(self.future.pop()); self.status('Redo')
     def set_mode(self,mode):
-        self.mode=mode; self.pending=None;
+        self.mode=mode; self.pending=None;self.placement_value=None;
         for key,button in self.tool_buttons.items():button.selected(key==mode)
         self.status('Click canvas to place '+mode if mode not in ('select','wire') else ('Click a pin to begin wiring; click another pin to finish' if mode=='wire' else 'Select component'))
         self.canvas.configure(cursor='crosshair' if mode!='select' else 'arrow')
@@ -274,13 +285,13 @@ class Workbench(Instruments, tk.Tk):
             self.selected=next((p.id for p in self.doc.parts if p.id==ids[0]),None);self.render()
     def list_place(self,event):
         idx=self.parts_list.curselection()
-        if idx:self.set_mode(list(PINS)[idx[0]])
+        if idx:self.set_mode(['R','C','L','V','GND','D','LED','SW'][idx[0]])
     def canvas_move(self,ev):
         pt=self.wp(ev); self.coordlabel.configure(text=f'X: {pt[0]}  Y: {pt[1]}  •  Zoom: {int(self.scale_factor*100)}%')
         if self.mode in PINS:
             self.canvas.delete('placement')
             old=set(self.canvas.find_all())
-            ghost=Part(self.doc.next_name(self.mode),self.mode,*pt,DEFAULTS[self.mode][0])
+            ghost=Part(self.doc.next_name(self.mode),self.mode,*pt,getattr(self,'placement_value',None) or DEFAULTS[self.mode][0])
             self._shape(ghost)
             for item in set(self.canvas.find_all())-old:self.canvas.addtag_withtag('placement',item)
         if self.mode=='wire' and self.pending:
@@ -299,7 +310,7 @@ class Workbench(Instruments, tk.Tk):
                 self.render();self.status('Wire created')
             return
         if self.mode!='select':
-            self.checkpoint();p=self.doc.add(self.mode,*pt)
+            self.checkpoint();p=self.doc.add(self.mode,*pt,value=getattr(self,'placement_value',None))
             self.selected=p.id;self.set_mode('select');self.render();self.status('Placed '+p.id);return
         part=self.find_part(pt)
         self.selected=part.id if part else None
@@ -396,6 +407,16 @@ class Workbench(Instruments, tk.Tk):
             line([(-14,-12),(-14,12),(14,0),(-14,-12)])
             line([(14,-13),(14,13)])
             if kind=='LED':line([(0,-19),(13,-32)]);line([(10,-20),(23,-33)])
+        elif kind in ('NPN','PNP'):
+            line([(-40,0),(-12,0)]);line([(-12,-20),(-12,20)])
+            line([(-12,-14),(20,-30),(20,-40)])
+            line([(-12,14),(20,30),(20,40)])
+            line([(5,23),(16,28)] if kind=='NPN' else [(12,26),(-5,17)],arrow='last')
+        elif kind=='OPAMP':
+            line([(-35,-40),(-35,40),(40,0),(-35,-40)])
+            line([(-60,-20),(-35,-20)]);line([(-60,20),(-35,20)]);line([(40,0),(60,0)])
+            line([(0,-60),(0,-22)]);line([(0,60),(0,22)])
+            line([(-29,-20),(-19,-20)]);line([(-24,-25),(-24,-15)]);line([(-29,20),(-19,20)])
         elif kind=='SW':
             line([(-40,0),(-22,0)]);line([(22,0),(40,0)])
             line([(-22,0),(22,0) if p.value.lower()=='closed' else (12,-17)])
@@ -404,8 +425,8 @@ class Workbench(Instruments, tk.Tk):
                 self.canvas.create_oval(a1,b1,a2,b2,fill=BLUE,outline=BLUE)
         if kind != 'GND':
             # Symbols are labelled independently from schematic wires.
-            labpos=tf(0,-38) if kind!='V' else tf(34,-12)
-            textpos=tf(0,26) if kind!='V' else tf(36,6)
+            labpos=tf(0,-78) if kind=='OPAMP' else tf(0,-38) if kind!='V' else tf(34,-12)
+            textpos=tf(0,78) if kind=='OPAMP' else tf(0,58) if kind in ('NPN','PNP') else tf(0,26) if kind!='V' else tf(36,6)
             self.canvas.create_text(*self.xp(labpos),text=p.id,anchor='center' if kind!='V' else 'w',fill=INK,font=('Segoe UI',max(8,int(10*self.scale_factor)),'bold'))
             self.canvas.create_text(*self.xp(textpos),text=p.value,anchor='center' if kind!='V' else 'w',fill=GREY,font=('Segoe UI',max(8,int(9*self.scale_factor))))
         for pt in p.pins():
@@ -497,108 +518,14 @@ class Workbench(Instruments, tk.Tk):
         self.filepath=None;self.history.clear();self.future.clear();self.selected=None;self.timeline=None
         self.render();self.write_panel('results','Example: a 5 V DC source charges a 1 µF capacitor through 1 kΩ.\nClick Run to solve with ngspice. Use Simulate for DC/AC analysis.\nDouble-click a part to change its value.')
         self.status('Ready — sample RC circuit loaded')
+    def load_demo(self,name):
+        try:document=Document.load(Path(__file__).resolve().parents[2]/'examples'/name)
+        except (OSError,ValueError) as e:messagebox.showerror('Example',str(e),parent=self);return
+        self.stop();self.doc=document;self.result=None;self.timeline=None;self.filepath=None;self.selected=None
+        self.history.clear();self.future.clear();self.cancel();self.status('Loaded '+document.title)
     def component_browser(self):
-        """Actual searchable component-picker window, styled after legacy CAD dialogs."""
-        win = tk.Toplevel(self)
-        win.title('Select a Component — Open Circuit Workbench')
-        win.geometry('790x530')
-        win.minsize(650, 430)
-        win.transient(self)
-        win.configure(background=BOARD)
-        win.grab_set()
-        top = ttk.Frame(win)
-        top.pack(fill='x', padx=12, pady=(13, 7))
-        ttk.Label(top, text='Database:').pack(side='left', padx=(0, 9))
-        db = ttk.Combobox(top, values=['Master Database (Open Circuit Workbench)'], state='readonly', width=34)
-        db.current(0); db.pack(side='left')
-        ttk.Label(top, text='Search:').pack(side='left', padx=(22, 8))
-        query = tk.StringVar()
-        search = ttk.Entry(top, textvariable=query)
-        search.pack(side='left', fill='x', expand=True)
-        body = ttk.PanedWindow(win, orient=tk.HORIZONTAL)
-        body.pack(fill='both', expand=True, padx=12, pady=(0, 8))
-        left = ttk.Frame(body); body.add(left, weight=1)
-        ttk.Label(left, text='Group / Family', font=('Segoe UI',9,'bold')).pack(anchor='w', pady=5)
-        groups = tk.Listbox(left, exportselection=False, height=10, font=('Segoe UI',10),
-                            bg='white', relief='groove')
-        groups.pack(fill='both', expand=True)
-        for name in ('All Components', 'Basic', 'Sources', 'Diodes', 'Switches'):
-            groups.insert('end', name)
-        groups.selection_set(0)
-        mid = ttk.Frame(body); body.add(mid, weight=3)
-        ttk.Label(mid, text='Component', font=('Segoe UI',9,'bold')).pack(anchor='w', pady=5)
-        tree = ttk.Treeview(mid, columns=('type','default','support'), show='headings', height=10,
-                            selectmode='browse')
-        tree.heading('type',text='Component');tree.column('type',width=140)
-        tree.heading('default',text='Default');tree.column('default',width=85)
-        tree.heading('support',text='Simulation');tree.column('support',width=100)
-        tree.pack(fill='both',expand=True)
-        detail = ttk.Frame(win)
-        detail.pack(fill='x', padx=12, pady=(0,5))
-        ttk.Label(detail, text='Symbol preview:', font=('Segoe UI',9,'bold')).pack(anchor='w')
-        previews = ttk.Frame(detail); previews.pack(fill='x')
-        symbol = tk.Canvas(previews, width=125, height=92, bg='white', highlightthickness=1,
-                           highlightbackground=OUTLINE)
-        symbol.pack(side='left', padx=(0,12))
-        description = tk.StringVar(value='Select a component to preview its symbol and properties.')
-        ttk.Label(previews, textvariable=description, wraplength=550, justify='left').pack(side='left',fill='x',expand=True)
-        catalog = [
-            ('R','Resistor','Basic','ngspice'), ('C','Capacitor','Basic','ngspice'),
-            ('L','Inductor','Basic','ngspice'), ('V','DC Voltage Source','Sources','ngspice'),
-            ('GND','Ground','Sources','Reference'), ('D','Diode','Diodes','Generic model'),
-            ('LED','Light-Emitting Diode','Diodes','Generic model'),('SW','Switch','Switches','Static resistor model')]
-        by_kind = {item[0]: item for item in catalog}
-        def redraw():
-            group = groups.get(groups.curselection()[0]) if groups.curselection() else 'All Components'
-            needle = query.get().lower().strip()
-            old_selection=tree.selection()[0] if tree.selection() else None
-            tree.delete(*tree.get_children())
-            for kind,label,family,support in catalog:
-                if (group in ('All Components',family)) and (not needle or needle in (label+' '+kind).lower()):
-                    tree.insert('','end',iid=kind,values=(label,DEFAULTS[kind][0],support))
-            if old_selection and tree.exists(old_selection): tree.selection_set(old_selection)
-            elif tree.get_children(): tree.selection_set(tree.get_children()[0])
-            preview()
-        def preview(event=None):
-            symbol.delete('all')
-            chosen=tree.selection()
-            if not chosen:
-                description.set('No matching components.')
-                return
-            kind=chosen[0]
-            name,group,support=by_kind[kind][1:]
-            description.set(f'{name} ({kind})\nGroup: {group}     Default value: {DEFAULTS[kind][0] or "—"}\nStatus: {support}\nSelect Place, then click on the schematic grid.')
-            symbol.create_line(12,46,112,46,fill=BLUE,width=2)
-            if kind=='R':symbol.create_rectangle(39,36,85,56,outline=BLUE,fill='white',width=2)
-            elif kind=='C':
-                symbol.create_rectangle(56,23,59,69,outline=BLUE,fill=BLUE)
-                symbol.create_rectangle(66,23,69,69,outline=BLUE,fill=BLUE)
-                symbol.create_rectangle(58,35,67,57,fill='white',outline='white')
-            elif kind=='V':
-                symbol.create_oval(42,18,82,74,outline=BLUE,fill='white',width=2)
-                symbol.create_text(62,40,text='+',fill=BLUE,font=('Consolas',14,'bold'))
-            elif kind=='GND':
-                symbol.delete('all');symbol.create_line(62,14,62,44,fill=BLUE,width=2)
-                for y,w in [(46,34),(53,24),(60,12)]:symbol.create_line(62-w//2,y,62+w//2,y,fill=BLUE,width=2)
-            elif kind=='L':
-                for xx in (44,54,64,74):symbol.create_arc(xx,35,xx+14,59,start=0,extent=180,style='arc',outline=BLUE,width=2)
-            elif kind in ('D','LED'):
-                symbol.create_polygon(43,29,43,63,80,46,outline=BLUE,fill='white',width=2)
-                symbol.create_line(80,28,80,64,fill=BLUE,width=2)
-            elif kind=='SW':
-                symbol.create_line(43,46,80,29,fill=BLUE,width=2)
-        def choose(event=None):
-            selected=tree.selection()
-            if selected:
-                self.set_mode(selected[0]);win.grab_release();win.destroy()
-        tree.bind('<<TreeviewSelect>>',preview)
-        tree.bind('<Double-1>',choose)
-        groups.bind('<<ListboxSelect>>',lambda e:redraw())
-        query.trace_add('write',lambda *_:redraw())
-        actions=ttk.Frame(win);actions.pack(side='bottom',fill='x',padx=12,pady=(0,10))
-        ttk.Button(actions,text='Cancel',command=win.destroy).pack(side='right',padx=(7,0))
-        ttk.Button(actions,text='Place',command=choose).pack(side='right')
-        redraw();search.focus_set()
+        from .library_ui import component_browser
+        component_browser(self)
     def project_info(self):
         messagebox.showinfo('Project Information',f'{self.doc.title}\nComponents: {len(self.doc.parts)}\nWires: {len(self.doc.wires)}\nSave format: .ocw.json\nNo NI Multisim compatibility is claimed.')
     def reset_workspace(self):self.fit();self.status('Workspace reset')

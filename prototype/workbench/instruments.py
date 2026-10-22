@@ -12,6 +12,32 @@ from .measurements import readings, spectrum, mean
 
 class Instruments:
     def run(self):self.start_analysis(replace(self.analysis,kind='tran'),self.scope)
+    def dc_sweep(self):
+        sources=[p.id for p in self.doc.parts if p.kind=='V']
+        if not sources:messagebox.showinfo('DC sweep','Add a voltage source first',parent=self);return
+        win=tk.Toplevel(self);win.title('DC Sweep / I–V Analysis');win.transient(self)
+        source=tk.StringVar(value=sources[0]);values=[tk.StringVar(value=x) for x in ('0','5','.1')]
+        ttk.Label(win,text='Sweep voltage source').grid(row=0,column=0,padx=12,pady=8)
+        ttk.Combobox(win,textvariable=source,values=sources,state='readonly').grid(row=0,column=1,padx=12,pady=8)
+        for i,(title,var) in enumerate(zip(('Start (V)','Stop (V)','Step (V)'),values),1):
+            ttk.Label(win,text=title).grid(row=i,column=0,padx=12,pady=8);ttk.Entry(win,textvariable=var).grid(row=i,column=1,padx=12,pady=8)
+        def run():
+            try:
+                settings=replace(self.analysis,kind='dc',sweep_source=source.get(),sweep_start=number(values[0].get()),sweep_stop=number(values[1].get()),sweep_step=number(values[2].get()))
+                settings.validate();win.destroy();self.start_analysis(settings,self.dc_plot)
+            except ValueError as e:messagebox.showerror('DC sweep',str(e),parent=win)
+        ttk.Button(win,text='Run sweep',command=run).grid(row=4,column=1,padx=12,pady=12)
+    def dc_plot(self):
+        result=self._captured('dc')
+        if not result:return
+        win=tk.Toplevel(self);win.title('DC Sweep — voltage / current curves');win.geometry('960x600');win.transient(self)
+        vectors={f'V({n}) [V]':v for n,v in result.voltages.items()}|{f'I({n}) [A]':v for n,v in result.currents.items()}
+        selected=tk.StringVar(value=next(iter(vectors)));bar=ttk.Frame(win);bar.pack(fill='x',padx=12,pady=8)
+        ttk.Label(bar,text='Output vector').pack(side='left');ttk.Combobox(bar,textvariable=selected,values=list(vectors),state='readonly',width=30).pack(side='left',padx=8)
+        area=tk.Canvas(win,bg='#111d26',highlightthickness=0);area.pack(fill='both',expand=True,padx=12,pady=8)
+        def redraw(event=None):self._draw_plot(area,result.axis,[(selected.get(),vectors[selected.get()])],f'Swept source {result.analysis.sweep_source} (V)')
+        selected.trace_add('write',lambda *_:redraw());area.bind('<Configure>',redraw)
+        ttk.Label(win,text='Source current sign: positive into the positive voltage terminal. Completed-run snapshot.').pack(pady=8)
     def dc_analysis(self):self.start_analysis(replace(self.analysis,kind='op'),self.multimeter)
     def bode(self):self.start_analysis(replace(self.analysis,kind='ac'),lambda:self.trace_panel('Bode'))
     def start_analysis(self,analysis,callback):
@@ -108,7 +134,7 @@ class Instruments:
     def multimeter(self):
         result=self._captured()
         if not result:return
-        if result.analysis.kind=='ac':messagebox.showinfo('Multimeter','Run transient or DC operating point for these readings.',parent=self);return
+        if result.analysis.kind not in ('tran','op'):messagebox.showinfo('Multimeter','Run transient or DC operating point for these readings.',parent=self);return
         win=tk.Toplevel(self);win.title('XMM — Differential Meter / Source Current');win.geometry('600x400');win.transient(self)
         nodes=sorted(result.voltages,key=int);a=tk.StringVar(value=next((n for n in nodes if n!='0'),'0'));b=tk.StringVar(value='0')
         source=tk.StringVar(value=next(iter(result.currents),' '))

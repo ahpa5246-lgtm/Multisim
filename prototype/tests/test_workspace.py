@@ -93,3 +93,33 @@ class WorkspaceTests(unittest.TestCase):
         called=[]
         a._poll_analysis(copy.deepcopy(a.doc),lambda:called.append(True))
         self.assertIsNone(a.result);self.assertFalse(called)
+    def test_library_model_selection_and_new_tabs(self):
+        from tkinter import ttk
+        a=self.app;a.component_browser();a.update()
+        win=next(w for w in a.winfo_children() if w.winfo_class()=='Toplevel')
+        def descendants(w):
+            for child in w.winfo_children():yield child;yield from descendants(child)
+        tree=next(w for w in descendants(win) if isinstance(w,ttk.Treeview))
+        self.assertGreater(len(tree.get_children()),1200)
+        search=next(w for w in descendants(win) if isinstance(w,ttk.Entry))
+        search.insert(0,'resistor');a.update();self.assertTrue(tree.exists('R'))
+        search.delete(0,'end');a.update()
+        tree.selection_set('LM358')
+        # Invoke the actual Place button without relying on keyboard focus.
+        button=next(w for w in descendants(win) if isinstance(w,ttk.Button) and w.cget('text')=='Place component')
+        button.invoke();a.update()
+        self.assertEqual(a.mode,'OPAMP');self.assertEqual(a.placement_value,'LM358')
+        a.canvas_down(SimpleNamespace(x=850,y=200));a.update()
+        self.assertEqual(a.doc.parts[-1].value,'LM358')
+        self.assertEqual(len(a.doc.parts[-1].pins()),5)
+        self.assertIn('SpiceOpamp.lib',a.panel_models.get('1.0','end'))
+        self.assertIn('LM358',a.panel_bom.get('1.0','end'))
+
+    @unittest.skipUnless(shutil.which('ngspice') or os.environ.get('OCW_NGSPICE'),'Requires ngspice')
+    def test_multimeter_rejects_sweep_axis(self):
+        from workbench.spice import Engine,Analysis
+        from unittest.mock import patch
+        a=self.app;a.result=Engine().run(a.doc,Analysis(kind='dc',sweep_source='V1'))
+        with patch('workbench.instruments.messagebox.showinfo') as notice:
+            a.multimeter();notice.assert_called_once()
+        self.assertFalse(any(w.winfo_class()=='Toplevel' for w in a.winfo_children()))

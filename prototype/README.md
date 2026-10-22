@@ -30,3 +30,13 @@ Run `xvfb-run -a python -m unittest discover -s tests -v` on Linux with ngspice 
 ![Oscilloscope](../docs/evidence/ngspice-instruments/scope.png)
 
 No full Multisim equivalence, advanced semiconductor library, arbitrary branch probe, complete logic/RF/HDL integration, .ms14 support or tested Windows installer is claimed. [The complete audit](../docs/OPEN_SOURCE_AUDIT.md) maps the missing tools to candidate projects and validation requirements. GPL-2.0-or-later applies to local code; external engines and upstream code retain their notices.
+
+## Expanded component database
+
+The component picker now exposes 1,229 pinned Qucs-S-derived model entries, grouped by NPN, PNP and OPAMP, alongside the basic parts. Search a device such as BC547B or LM358, then choose Place. Symbols use **electrical** C/B/E or +/−/VCC/VEE/OUT ordering, not package leg numbering. Models shows provenance; BOM lists quantities; Diagnostics flags isolated terminals and missing ground (a limited connectivity check).
+
+Simulate includes DC Sweep / I–V and loadable op-amp/transistor examples. Choose a voltage source, range and step, then select a current or voltage output vector in the plot. The meter rejects sweep data because a voltage sweep axis is not time.
+
+All 1,226 transistor models were smoke-checked with ngspice42 at one bias point; all three op-amps were checked in voltage followers. Comprehensive model/NI equivalence remains unverified. Full ngspice installation, including standard XSPICE code-model files, is required for polynomial op-amp macromodels.
+
+Source, original license, contributor attribution and deterministic rebuild script are included under workbench/data and scripts/import_qucs_devices.py. The compressed catalog records 18 unsupported upstream entries explicitly. Read [interoperability research](../docs/INTEROPERABILITY_RESEARCH.md) for native Multisim-file work that remains pending.

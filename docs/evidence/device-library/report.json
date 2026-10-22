@@ -1,0 +1,6 @@
+{
+  "LM358_follower_input_V": 0.2,
+  "LM358_follower_output_V": 0.1999530427566853,
+  "DC_sweep_points": 51,
+  "DC_sweep_stop_V": 4.999999999999998
+}

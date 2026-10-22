@@ -8,6 +8,8 @@ For the independent, directly runnable Multisim-inspired interface, open `protot
 
 ![Compact desktop workspace](docs/evidence/workspace-after.png)
 
+The component database additionally includes **1,229 Qucs-S-derived device models**, multi-terminal BJT/op-amp capture, DC sweeps, and Models/BOM/Diagnostics panels. See [source and interoperability notes](docs/INTEROPERABILITY_RESEARCH.md).
+
 ## Current milestone
 
 The complete upstream Qt schematic editor is pinned as a Git submodule, not replaced by a mock web UI. Local additions provide reproducible builds and an independently checked RC simulation baseline. No proprietary code or artwork is included.
