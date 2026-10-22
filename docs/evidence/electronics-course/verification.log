@@ -56,7 +56,7 @@ test_stop_discards_already_queued_success (test_workspace.WorkspaceTests.test_st
 test_zoom_and_tool_selection (test_workspace.WorkspaceTests.test_zoom_and_tool_selection) ... ok
 
 ----------------------------------------------------------------------
-Ran 56 tests in 17.494s
+Ran 56 tests in 14.613s
 
 OK
 test_analytic_waveform (test_rc.RCTest.test_analytic_waveform) ... ok
@@ -67,6 +67,6 @@ test_short_capture (test_rc.RCTest.test_short_capture) ... ok
 test_wrong_waveform (test_rc.RCTest.test_wrong_waveform) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.001s
+Ran 6 tests in 0.002s
 
 OK

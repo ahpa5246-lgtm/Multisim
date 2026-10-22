@@ -11,7 +11,8 @@ def load_experiment(app,key):
     app.analysis=experiment.analysis;app.active_experiment=key
     app.cancel();app.fit()
     app.analysis_mode.set({'op':'DC Operating Point','tran':'Transient','ac':'AC Sweep','dc':'DC Sweep'}[experiment.analysis.kind])
-    app.write_panel('simulation',f'{experiment.title}\nPDF pages: {experiment.pages.replace(chr(8211),'-')}\n{experiment.note}\n\nNamed terminals join electrically. Edit and save this circuit normally.\nUse Run Selected Analysis, then Tools > Check Experiment Results.')
+    pages=experiment.pages.replace(chr(8211),'-')
+    app.write_panel('simulation',f'{experiment.title}\nPDF pages: {pages}\n{experiment.note}\n\nNamed terminals join electrically. Edit and save this circuit normally.\nUse Run Selected Analysis, then Tools > Check Experiment Results.')
     app.report_tabs.select(3);app.status('Loaded experiment: '+experiment.title)
     return True
 
