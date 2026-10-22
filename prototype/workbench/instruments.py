@@ -5,6 +5,7 @@ import math
 import queue
 import threading
 import tkinter as tk
+from . import theme
 from tkinter import ttk, messagebox, filedialog
 from dataclasses import replace
 from .spice import Analysis, Engine, number, source_value
@@ -141,7 +142,7 @@ class Instruments:
         bar=ttk.Frame(win);bar.pack(fill='x',padx=12,pady=12)
         for text,var,vals in [('V+',a,nodes),('V−',b,nodes),('Source',source,list(result.currents))]:
             ttk.Label(bar,text=text).pack(side='left',padx=4);ttk.Combobox(bar,textvariable=var,values=vals,state='readonly',width=8).pack(side='left')
-        text=tk.Text(win,font=('Consolas',12),height=12,bg='#eef4e8');text.pack(fill='both',expand=True,padx=12,pady=5)
+        text=tk.Text(win,font=(theme.MONO,12),height=12,bg='#eef4e8');text.pack(fill='both',expand=True,padx=12,pady=5)
         def refresh():
             values=[x-y for x,y in zip(result.voltages[a.get()],result.voltages[b.get()])]
             data=readings(result.axis,values);lines=[f'{key}: {value:.7g}' if value is not None else f'{key}: no periodic crossings' for key,value in data.items()]
@@ -211,7 +212,7 @@ class Instruments:
             pad=(hi-lo)*.08;lo-=pad;hi+=pad
             for k in range(6):
                 y=top+(bottom-top)*k/5;area.create_line(65,y,w-25,y,fill='#2a3b47')
-                area.create_text(56,y,text=f'{hi-(hi-lo)*k/5:.3g}',anchor='e',fill='#aebfcb',font=('Consolas',9))
+                area.create_text(56,y,text=f'{hi-(hi-lo)*k/5:.3g}',anchor='e',fill='#aebfcb',font=(theme.MONO,9))
             for idx,(label,arr) in enumerate(chosen):
                 color=['#ffde69','#42dbce'][idx%2] if not separate else ['#ffde69','#42dbce'][band%2]
                 pts=[];previous_y=None
@@ -220,8 +221,8 @@ class Instruments:
                     if steps and previous_y is not None:pts.extend([px,previous_y])
                     pts.extend([px,py]);previous_y=py
                 area.create_line(*pts,fill=color,width=1.7)
-                area.create_text(75+idx*180,top+8,text=label,anchor='w',fill=color,font=('Consolas',10,'bold'))
+                area.create_text(75+idx*180,top+8,text=label,anchor='w',fill=color,font=(theme.MONO,10,'bold'))
         for k in range(6):
             px=65+(w-90)*k/5;value=xlo+(xhi-xlo)*k/5
-            area.create_text(px,h-26,text=f'{10**value if separate else value:.3g}',fill='#aebfcb',font=('Consolas',9))
-        area.create_text(w/2,h-9,text=xlabel,fill='#aebfcb',font=('Segoe UI',9))
+            area.create_text(px,h-26,text=f'{10**value if separate else value:.3g}',fill='#aebfcb',font=(theme.MONO,9))
+        area.create_text(w/2,h-9,text=xlabel,fill='#aebfcb',font=(theme.FAMILY,9))

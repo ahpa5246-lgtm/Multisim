@@ -91,3 +91,15 @@ Final local command: `OCW_NGSPICE=/tmp/ocw-deps/usr/bin/ngspice LD_LIBRARY_PATH=
 - Remaining: MOS families, richer ICs/digital devices, hierarchical sheets, advanced analyses, Windows packaging and .ms14 mapping/NI roundtrip validation. Next bounded task is a four-terminal MOS model path with drain/gate/source/bulk mapping and I–V tests.
 
 Final verification: `bash /tmp/verify_devices123.sh` with complete extracted ngspice42 runtime and real Xvfb on display123: **40 prototype tests + 6 root tests PASS, no skips**. One prototype test iterates every one of the 1,226 adapted BJT models. Native UI interactions and actual screenshots completed. Python3.10 grammar and byte-compilation pass. Verification transcript is committed in docs/evidence/device-library/verification.log. Windows and direct NI numerical comparison remain unverified.
+
+## Reference typography, component selector and read-only inspection — 2026-10-22
+
+Compared NI desktop documentation/screens with actual application captures; fixed unavailable Segoe UI fallback, themed tables and headings, neutral grid and title strips. Added component symbol/model details and cleared stale previews on empty searches. This remains an independent interface with substantial visual and functional differences; no exact-match claim.
+
+Added bounded read-only container metadata inspection derived from the pinned ISC decoder. No native import or decompression. JSON export rejects original paths and hardlink aliases. Inspected the MIT multisim-mcp COM implementation: it requires the installed licensed Windows NI product and is not a portable simulator replacement. Details and remaining gaps are in INTEROPERABILITY_RESEARCH.md.
+
+Final local command: `bash /tmp/verify_reference137.sh`, Linux Python3.12/Tk9/ngspice42 with fresh Xvfb display137: **46 prototype + 6 root tests PASS**, no skips; byte-compilation and actual GUI captures complete. Evidence: docs/evidence/reference-ui. Windows rendering, native file roundtrips and direct NI numerical/pixel comparison remain unverified. Next bounded task remains four-terminal MOS model support with real I–V tests.
+
+Independent review found unbounded special/growing-file reads and excessive section allocation. Fixed with regular-file checks, bounded reads and a 4096-section cap; regressions pass.
+
+Final GUI validation initially crashed twice with Tcl_AsyncDelete after repeated window disposal. Test teardown now explicitly collects destroyed Tk windows on their owning main thread before later solver workers can trigger cyclic collection. The full final run passes; the earlier crashed runs are not passes.

@@ -1,5 +1,6 @@
 """Small keyboard-accessible CAD controls; original vector artwork, no font icons."""
 import tkinter as tk
+from . import theme
 
 class ToolButton(tk.Canvas):
     def __init__(self, parent, icon, command, label, disabled=False):
@@ -27,7 +28,7 @@ class ToolButton(tk.Canvas):
         self.tip=tk.Toplevel(self);self.tip.overrideredirect(True)
         self.tip.geometry(f'+{self.winfo_rootx()+12}+{self.winfo_rooty()+29}')
         tk.Label(self.tip,text=self.label,bg='#ffffe1',fg='#222',relief='solid',bd=1,
-                 font=('Segoe UI',9),padx=5,pady=3).pack()
+                 font=(theme.FAMILY,9),padx=5,pady=3).pack()
     def leave(self,event):
         if self.timer:self.after_cancel(self.timer);self.timer=None
         if self.tip:self.tip.destroy();self.tip=None
