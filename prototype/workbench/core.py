@@ -10,15 +10,17 @@ from pathlib import Path
 
 GRID = 20
 PINS = {
+    'NPN':[(20,-40),(-40,0),(20,40)], 'PNP':[(20,-40),(-40,0),(20,40)],
+    'OPAMP':[(-60,-20),(-60,20),(0,-60),(0,60),(60,0)],
     'R': [(-40, 0), (40, 0)], 'C': [(-40, 0), (40, 0)],
     'L': [(-40, 0), (40, 0)], 'V': [(0, -40), (0, 40)],
     'GND': [(0, -20)], 'D': [(-40, 0), (40, 0)],
     'LED': [(-40, 0), (40, 0)], 'SW': [(-40, 0), (40, 0)],
 }
-DEFAULTS = {'R': ('1k', 'Ω'), 'C': ('1u', 'F'), 'L': ('10m', 'H'),
+DEFAULTS = {'NPN':('BC547B',''), 'PNP':('BC557B',''), 'OPAMP':('LM358',''),'R': ('1k', 'Ω'), 'C': ('1u', 'F'), 'L': ('10m', 'H'),
             'V': ('5', 'V'), 'GND': ('', ''), 'D': ('1N4148', ''),
             'LED': ('Red', ''), 'SW': ('Open', '')}
-PREFIX = {'p': 1e-12, 'n': 1e-9, 'u': 1e-6, 'µ': 1e-6,
+PREFIX = {'f':1e-15, 'a':1e-18, 'p': 1e-12, 'n': 1e-9, 'u': 1e-6, 'µ': 1e-6,
           'm': 1e-3, 'k': 1e3, 'K': 1e3, 'M': 1e6, 'G': 1e9}
 
 def numeric(value: str) -> float:
@@ -69,7 +71,7 @@ class Document:
     def next_name(self, kind):
         taken = {p.id for p in self.parts}
         prefix = {'GND': 'GND', 'V': 'V', 'R': 'R', 'C': 'C', 'L': 'L',
-                  'D': 'D', 'LED': 'LED', 'SW': 'S'}[kind]
+                  'D': 'D', 'LED': 'LED', 'SW': 'S', 'NPN':'Q', 'PNP':'Q', 'OPAMP':'U'}[kind]
         i = 1
         while f'{prefix}{i}' in taken: i += 1
         return f'{prefix}{i}'

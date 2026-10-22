@@ -32,3 +32,7 @@ Record NI version, upstream SHA, ngspice version, circuit/model files, supply va
 ## Current superseding status — ngspice integration
 
 The Python UI now uses real ngspice for its Run/DC/AC actions. Its earlier educational-only solver status above is historical. Scope/generator/meter/Bode/spectrum/threshold traces are **partial implementations**, with exact limits in `docs/OPEN_SOURCE_AUDIT.md`. R/L/C transients, generic diode, static switch, DC divider, sine source and RC AC cutoff are verified on Linux. Full digital, RF, semiconductor database, arbitrary probe insertion, Windows and .ms14 parity remain missing/untested/blocked as specified there.
+
+## Device-library milestone — 2026-10-22
+
+1,229 adapted Qucs-S library entries: 1,226 BJT models solver-smoke-checked, three op-amp models follower-tested. Three-/five-pin native capture, selection, placement and persistence are implemented. Models/BOM/basic connectivity diagnostics and single-source DC sweeps are implemented. This does not establish manufacturer-characteristic or full Multisim parity. Source/license and 18 skipped input entries are preserved in the generated catalog and notices; interoperability research is separate.

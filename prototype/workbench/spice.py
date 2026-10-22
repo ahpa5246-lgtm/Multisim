@@ -14,6 +14,7 @@ import subprocess
 import tempfile
 import threading
 from .core import numeric
+from .devices import device_model
 
 
 def number(value):
@@ -41,10 +42,16 @@ class Analysis:
     points:int=1000
     start:float=10
     stop:float=1e6
+    sweep_source:str=''
+    sweep_start:float=0
+    sweep_stop:float=5
+    sweep_step:float=.1
     def validate(self):
-        if self.kind not in ('tran','op','ac'):raise ValueError('Unsupported analysis')
+        if self.kind not in ('tran','op','ac','dc'):raise ValueError('Unsupported analysis')
         if not isinstance(self.points,int) or not 2<=self.points<=20000:raise ValueError('Points must be 2–20000')
         if not all(math.isfinite(x) for x in (self.duration,self.start,self.stop)):raise ValueError('Analysis values must be finite')
+        if self.kind=='dc':
+            if not all(math.isfinite(x) for x in (self.sweep_start,self.sweep_stop,self.sweep_step)) or self.sweep_stop<=self.sweep_start or self.sweep_step<=0 or (self.sweep_stop-self.sweep_start)/self.sweep_step>20000:raise ValueError('DC sweep needs increasing finite bounds, positive step, at most 20001 points')
         if not 0<self.duration<=100 or not 0<self.start<self.stop:raise ValueError('Invalid time/frequency range')
 
 @dataclass
@@ -64,7 +71,7 @@ class Result:
         (path/'raw-table.dat').write_text(self.table,encoding='utf-8')
         with (path/'samples.csv').open('w',newline='',encoding='utf-8') as f:
             writer=csv.writer(f);vectors={f'V({k})':v for k,v in self.voltages.items()}|{f'I({k})':v for k,v in self.currents.items()}
-            writer.writerow(['frequency_Hz' if self.analysis.kind=='ac' else 'time_s' if self.analysis.kind=='tran' else 'operating_point',*vectors])
+            writer.writerow(['frequency_Hz' if self.analysis.kind=='ac' else 'time_s' if self.analysis.kind=='tran' else 'source_voltage_V' if self.analysis.kind=='dc' else 'operating_point',*vectors])
             writer.writerows(zip(self.axis,*vectors.values()))
 
 
@@ -75,11 +82,23 @@ def compile_deck(doc,analysis):
     nets=doc.networks();nodes=sorted(set(nets.values())-{'0'},key=int)
     if not nodes:raise ValueError('Circuit has no non-ground nodes')
     lines=['Open Circuit Workbench - ngspice', '.options reltol=1e-5 abstol=1e-12 vntol=1e-6']
-    sources=[]
+    sources=[];model_cards=[]
     if len({p.id.lower() for p in doc.parts})!=len(doc.parts):raise ValueError('Component references must be unique ignoring case')
     for p in doc.parts:
         if p.kind=='GND':continue
         if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*',p.id):raise ValueError('Invalid component reference')
+        if p.kind in ('NPN','PNP','OPAMP'):
+            model=device_model(p.kind,p.value);pins=[nets[(p.id,i)] for i in range(len(p.pins()))]
+            if p.kind=='OPAMP':
+                if pins[2]==pins[3]:raise ValueError('Op-amp supply pins must differ')
+                lines.append(f'X{p.id} 0 '+ ' '.join(pins)+' '+model['subckt'])
+                if model['spice'] not in model_cards:model_cards.append(model['spice'])
+            else:
+                name='QMOD_'+p.id
+                lines.append(f'Q{p.id} '+ ' '.join(pins)+' '+name)
+                params=' '.join(f'{k}={v:.15g}' for k,v in model['parameters'].items())
+                model_cards.append(f'.model {name} {p.kind} ({params})')
+            continue
         a,b=(nets[(p.id,i)] for i in (0,1))
         if a==b:raise ValueError(f'{p.id} has shorted pins')
         if p.kind in ('R','C','L'):
@@ -97,9 +116,14 @@ def compile_deck(doc,analysis):
             lines.append(f'R{p.id} {a} {b} '+('1e12' if p.value.lower()=='open' else '0.001'))
         else:raise ValueError(f'Unsupported component: {p.kind}')
     if not sources:raise ValueError('Add a voltage source')
+    lines+=model_cards
     lines+=['.model OCW_D D(Is=1e-14 N=1)', '.model OCW_LED D(Is=1e-20 N=2)', '.control','set noaskquit','set wr_singlescale','set wr_vecnames','set numdgt=15']
     if analysis.kind=='tran':lines.append(f'tran {analysis.duration/analysis.points:.12g} {analysis.duration:.12g} uic')
     elif analysis.kind=='ac':lines.append(f'ac dec {analysis.points} {analysis.start:.12g} {analysis.stop:.12g}')
+    elif analysis.kind=='dc':
+        source=analysis.sweep_source or sources[0]
+        if source not in sources:raise ValueError('Select an existing voltage source for DC sweep')
+        lines.append(f'dc V{source} {analysis.sweep_start:.12g} {analysis.sweep_stop:.12g} {analysis.sweep_step:.12g}')
     else:lines.append('op')
     vectors=[f'v({n})' for n in nodes]+[f'i(v{s})' for s in sources]
     lines+=['wrdata result.dat '+' '.join(vectors),'quit','.endc','.end']
