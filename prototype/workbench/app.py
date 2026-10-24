@@ -93,6 +93,25 @@ class Workbench(Instruments, tk.Tk):
                 else: m.add_command(label=pair[0],command=pair[1])
             menu.add_cascade(label=title,menu=m)
         self.config(menu=menu)
+        # On X11 without a window manager the native menu can be omitted from
+        # captured client-area screenshots. Provide an accessible in-window
+        # menu strip on non-Windows hosts; Windows retains its native menu.
+        if sys.platform != 'win32':
+            menustrip=tk.Frame(self,bg=CHROME,bd=1,relief='raised')
+            menustrip.pack(side='top',fill='x')
+            for caption, commands in items.items():
+                btn=tk.Menubutton(menustrip,text=caption,bg=CHROME,fg='#243c59',
+                                  activebackground='#d4e3f5',activeforeground='#193d67',
+                                  relief='flat',bd=0,padx=9,pady=3,
+                                  font=(theme.FAMILY,9),direction='below')
+                submenu=tk.Menu(btn,tearoff=False)
+                for pair in commands:
+                    if pair is None:
+                        submenu.add_separator()
+                    else:
+                        submenu.add_command(label=pair[0],command=pair[1])
+                btn.configure(menu=submenu)
+                btn.pack(side='left')
 
     def _tool(self, parent, icon, command, label, key=None, disabled=False, vertical=False):
         button=ToolButton(parent,icon,command,label,disabled)
