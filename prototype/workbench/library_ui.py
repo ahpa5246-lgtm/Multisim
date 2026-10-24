@@ -6,8 +6,17 @@ from .devices import MODELS
 from .core import DEFAULTS, PIN_LABELS
 
 def component_browser(app):
-    win=tk.Toplevel(app);win.title('Select a Component');win.geometry('1040x650');win.transient(app)
-    win.grab_set();top=ttk.Frame(win);top.pack(fill='x',padx=12,pady=10)
+    win=tk.Toplevel(app);win.title('Select a Component — Master Database')
+    win.geometry('1060x680');win.minsize(850,520);win.transient(app)
+    win.configure(bg='#e4e8ed')
+    win.grab_set()
+    banner=tk.Frame(win,bg='#d7e1ef',bd=1,relief='groove');banner.pack(fill='x')
+    tk.Frame(banner,bg='#265795',width=5).pack(side='left',fill='y')
+    tk.Label(banner,text='SELECT A COMPONENT',bg='#d7e1ef',fg='#1f405f',
+             font=(theme.FAMILY,10,'bold'),pady=9).pack(side='left',padx=12)
+    tk.Label(banner,text='Master database • Schematic symbols',bg='#d7e1ef',
+             fg='#526985',font=(theme.FAMILY,9)).pack(side='right',padx=14)
+    top=ttk.Frame(win);top.pack(fill='x',padx=12,pady=12)
     ttk.Label(top,text='Database:').pack(side='left',padx=(0,8))
     database=ttk.Combobox(top,values=['Master Database'],state='readonly',width=25);database.current(0);database.pack(side='left')
     query=tk.StringVar();ttk.Label(top,text='Search').pack(side='left',padx=(20,5));entry=ttk.Entry(top,textvariable=query);entry.pack(side='left',fill='x',expand=True)
@@ -22,10 +31,14 @@ def component_browser(app):
     scroll=ttk.Scrollbar(mid,command=tree.yview);tree.configure(yscrollcommand=scroll.set);scroll.pack(side='right',fill='y');tree.pack(fill='both',expand=True)
     details=ttk.Frame(body,width=245);body.add(details,weight=0)
     symbol_box=ttk.LabelFrame(details,text='Symbol');symbol_box.pack(fill='x',padx=(10,0),pady=(0,8))
-    symbol=tk.Canvas(symbol_box,width=230,height=175,bg='white',highlightthickness=0);symbol.pack(fill='x',padx=4,pady=4)
+    symbol=tk.Canvas(symbol_box,width=230,height=175,bg='white',highlightthickness=1,highlightbackground='#cbd6e4');symbol.pack(fill='x',padx=4,pady=4)
     model_box=ttk.LabelFrame(details,text='Model / pin details');model_box.pack(fill='both',expand=True,padx=(10,0))
     model_text=tk.Text(model_box,width=28,height=10,wrap='word',font=(theme.FAMILY,9),bg='white',relief='flat',padx=8,pady=8,state='disabled');model_text.pack(fill='both',expand=True)
-    info=tk.StringVar();ttk.Label(win,textvariable=info,wraplength=990,justify='left').pack(fill='x',padx=12,pady=10)
+    info=tk.StringVar()
+    info_box=tk.Frame(win,bg='#f3f6fa',bd=1,relief='groove');info_box.pack(fill='x',padx=12,pady=9)
+    tk.Label(info_box,textvariable=info,wraplength=980,justify='left',
+             bg='#f3f6fa',fg='#374b64',anchor='w',
+             font=(theme.FAMILY,9),padx=10,pady=6).pack(fill='x')
     names={'R':'Resistor','C':'Capacitor','L':'Inductor','V':'DC voltage source','GND':'Ground reference','D':'Diode','LED':'Light emitting diode','IPROBE':'Series current probe (ideal zero-volt source)','SW':'Switch','POT':'Potentiometer (total resistance:position)','I':'Current source'}
     catalog={k:{'kind':k,'value':DEFAULTS[k][0],'family':family,'description':names[k]+' — built-in primitive'} for k,family in [('IPROBE','Sources'),('I','Sources'),('POT','Basic'),('R','Basic'),('C','Basic'),('L','Basic'),('V','Sources'),('GND','Sources'),('D','Diodes'),('LED','Diodes'),('SW','Switches')]}
     catalog.update({name:{'kind':data['kind'],'value':name,'family':data['kind'],'description':data['description'],'source':data['source']} for name,data in MODELS.items()})
@@ -35,6 +48,10 @@ def component_browser(app):
         symbol.delete('all');c='#123f96'
         def line(*coords,**kw):symbol.create_line(*coords,fill=c,width=2,**kw)
         def label(x,y,text):symbol.create_text(x,y,text=text,fill='#333',font=(theme.FAMILY,9))
+        # Fine schematic-paper dots; the symbol itself stays foreground.
+        for gx in range(9,230,18):
+            for gy in range(8,175,18):
+                symbol.create_oval(gx,gy,gx+1,gy+1,outline='#dfe5ef')
         if kind in ('NPN','PNP'):
             line(35,85,95,85);line(95,55,95,115)
             line(95,65,145,40,145,20);line(95,105,145,130,145,150)
@@ -53,8 +70,10 @@ def component_browser(app):
             line(110,12,110,56);line(110,125,110,163)
             label(80,60,'+');label(80,115,'−');label(135,13,'VCC');label(135,162,'VEE');label(210,108,'OUT')
         elif kind in ('R','POT'):
-            line(25,85,65,85);line(155,85,205,85);symbol.create_rectangle(65,70,155,100,outline=c,width=2)
-            if kind=='POT':line(115,150,115,100,arrow='last')
+            line(25,85,65,85)
+            line(65,85,76,71,87,99,98,71,109,99,120,71,131,99,142,71,155,85)
+            line(155,85,205,85)
+            if kind=='POT':line(115,150,115,104,arrow='last')
         elif kind=='C':line(25,85,105,85);line(105,50,105,120);line(125,50,125,120);line(125,85,205,85)
         elif kind=='IPROBE':line(25,85,205,85,arrow='last')
         elif kind=='GND':

@@ -1,5 +1,10 @@
 # Open Circuit Workbench — native desktop interface
 
+## Classic CAD desktop workspace
+
+The original Tk schematic editor now has a Multisim-style three-level component/command toolbar, an interactive **Project / Hierarchy / Components** navigator, a traditional schematic document tab, refined engineering symbols and wiring, and a reworked component picker. The real analysis and instrument functions are preserved. See the [classic UI implementation and visual verification](../docs/CLASSIC_UI.md); this is an original, independent interface and is **not** NI Multisim or a claim of exact parity.
+
+
 Original Multisim-inspired Python/Tk interface with an independently installed **ngspice** engine. Existing Qucs-S is preserved separately; it is not embedded in this UI. No proprietary NI code, icons or firmware are included.
 
 ## Start

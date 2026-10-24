@@ -2,10 +2,14 @@
 import tkinter as tk
 from . import theme
 
+CHROME = '#edf0f4'
+ACTIVE = '#d3e3f7'
+BORDER = '#a6b9cf'
+
 class ToolButton(tk.Canvas):
     def __init__(self, parent, icon, command, label, disabled=False):
-        super().__init__(parent,width=27,height=25,background='#f0f0f0',
-                         highlightthickness=1,highlightbackground='#f0f0f0',
+        super().__init__(parent,width=30,height=28,background=CHROME,
+                         bd=0,highlightthickness=1,highlightbackground=CHROME,
                          takefocus=not disabled, cursor='arrow' if disabled else 'hand2')
         self.command=command; self.disabled=disabled; self.tip=None; self.timer=None
         self.label=label; self.active=False
@@ -14,17 +18,24 @@ class ToolButton(tk.Canvas):
         self.bind('<Button-1>',lambda e:self.invoke())
         self.bind('<Return>',lambda e:self.invoke());self.bind('<space>',lambda e:self.invoke())
         self.bind('<FocusIn>',lambda e:self.configure(highlightbackground='#7ca4cb'))
-        self.bind('<FocusOut>',lambda e:self.configure(highlightbackground='#f0f0f0'))
+        self.bind('<FocusOut>',lambda e:self.configure(highlightbackground=CHROME))
     def invoke(self):
         if not self.disabled:return self.command()
     def selected(self,value):
         self.active=value
-        self.configure(bg='#d9e7f5' if value else '#f0f0f0',
-                       highlightbackground='#7ca4cb' if value else '#f0f0f0')
+        self.configure(bg=ACTIVE if value else CHROME,
+                       highlightbackground=BORDER if value else CHROME)
     def enter(self,event):
-        self.configure(bg='#e1eaf4',highlightbackground='#99b4d1')
-        self.timer=self.after(450,self.show_tip)
+        if self.disabled:
+            return
+        self.configure(bg='#dfe9f6',highlightbackground=BORDER)
+        if self.timer:
+            self.after_cancel(self.timer)
+        self.timer=self.after(600,self.show_tip)
     def show_tip(self):
+        self.timer=None
+        if self.tip or not self.winfo_exists():
+            return
         self.tip=tk.Toplevel(self);self.tip.overrideredirect(True)
         self.tip.geometry(f'+{self.winfo_rootx()+12}+{self.winfo_rooty()+29}')
         tk.Label(self.tip,text=self.label,bg='#ffffe1',fg='#222',relief='solid',bd=1,
@@ -65,11 +76,35 @@ class ToolButton(tk.Canvas):
             for y,w in ((13,18),(17,12),(21,6)):line(14-w/2,y,14+w/2,y)
         elif kind=='V':
             self.create_oval(6,5,22,21,outline=c,width=1.5);line(14,1,14,5);line(14,21,14,25);line(11,10,17,10);line(14,7,14,13);line(11,17,17,17)
-        elif kind in ('scope','bode','logic','meter','generator','probe'):
-            rect(3,4,25,22,fill='#f7faf6');rect(6,7,22,18)
-            if kind=='meter':self.create_text(14,13,text='V',font=('TkDefaultFont',8,'bold'),fill=c)
-            elif kind=='logic':line(6,15,10,15,10,9,16,9,16,15,22,15)
-            else:line(6,14,9,14,12,9,16,16,19,11,22,11)
+        elif kind in ('scope','bode','logic','meter','generator','probe','spectrum'):
+            # Distinct ORIGINAL instrument pictograms; these all open actual
+            # working instrument panels, never decorative placeholders.
+            if kind=='meter':
+                rect(4,3,25,24,fill='#f9fcff')
+                self.create_text(14.5,11,text='V',font=(theme.FAMILY,10,'bold'),fill=c)
+                line(8,17,21,17)
+                self.create_oval(9,19,11,21,fill='#c22b34',outline='#c22b34')
+                self.create_oval(19,19,21,21,fill='#202b40',outline='#202b40')
+            elif kind=='generator':
+                self.create_oval(4,3,24,23,fill='#fbfdff',outline=c,width=1.5)
+                line(6,14,9,14,11,8,14,8,17,19,20,19,22,13)
+                line(24,13,29,13)
+            elif kind=='probe':
+                line(6,22,20,7)
+                self.create_oval(17,4,24,11,outline=c,width=1.5)
+                self.create_oval(2,21,7,26,fill='#b52c39',outline=c)
+            else:
+                rect(3,4,26,23,fill='#f9fcff')
+                line(6,19,23,19);line(6,7,6,19)
+                if kind=='scope':
+                    line(7,14,10,14,12,9,15,10,18,17,21,15,23,12)
+                elif kind=='bode':
+                    line(7,17,10,16,13,13,16,11,19,9,23,8)
+                elif kind=='logic':
+                    line(7,17,10,17,10,9,15,9,15,17,20,17,20,10,23,10)
+                elif kind=='spectrum':
+                    for xx, top in ((9,15),(13,10),(17,7),(21,13)):
+                        line(xx,19,xx,top)
         elif kind in ('zoom_in','zoom_out','fit'):
             self.create_oval(4,3,18,17,outline=c,width=1.5);line(17,16,24,23);line(7,10,15,10)
             if kind=='zoom_in':line(11,6,11,14)

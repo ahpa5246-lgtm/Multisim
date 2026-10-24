@@ -16,14 +16,17 @@ from .instruments import Instruments
 from .spice import Analysis, source_value, compile_deck
 from .core import Document, Part, PINS, DEFAULTS, GRID, numeric, snap, simulate, PIN_LABELS
 
-PAPER = '#ffffff'; INK = '#202020'; BLUE = '#163fa0'; RED = '#bf2028'
-GREY = '#606060'; BOARD = '#ededed'; OUTLINE = '#b1b1b1'; PALE = '#f5f5f5'
+# Neutral Windows-CAD palette, based on the documented Multisim workspace anatomy.
+# Original drawing primitives and existing simulation features are retained.
+PAPER = '#ffffff'; INK = '#20252c'; BLUE = '#16449c'; RED = '#c02737'
+GREY = '#526071'; BOARD = '#e4e8ed'; OUTLINE = '#b3bdc9'; PALE = '#f4f6f9'
+CHROME = '#edf0f4'; BAR = '#e6eaf0'; HEADER = '#d6e0ec'; ACCENT = '#265795'
 
 class Workbench(Instruments, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title('Open Circuit Workbench — Design1')
-        self.geometry('1360x850'); self.minsize(950,610)
+        self.geometry('1460x900'); self.minsize(1050,680)
         self.configure(background=BOARD)
         self.doc = Document()
         self.filepath = None
@@ -39,22 +42,35 @@ class Workbench(Instruments, tk.Tk):
         self.example()
 
     def _make_style(self):
-        style=ttk.Style(self)
-        if 'vista' in style.theme_names():style.theme_use('vista')
-        elif 'clam' in style.theme_names():style.theme_use('clam')
-        style.configure('.', font=(theme.FAMILY,9))
-        style.configure('TFrame',background=BOARD)
-        style.configure('Tool.TFrame',background='#f0f1f2')
-        style.configure('TButton',font=(theme.FAMILY,9),padding=(7,4))
-        style.configure('Treeview',font=(theme.FAMILY,9),rowheight=23,background='white')
-        style.configure('Treeview.Heading',font=(theme.FAMILY,9),background='#e8edf3',relief='flat',padding=(6,4))
-        style.map('Treeview',background=[('selected','#cbdff5')],foreground=[('selected','#172f4b')])
-        style.configure('TNotebook.Tab',background='#e8edf3')
-        style.map('TNotebook.Tab',background=[('selected','#ffffff')])
-        style.configure('TCombobox',padding=2)
-        style.configure('TNotebook',background=BOARD)
-        style.configure('TNotebook.Tab',padding=(10,3))
-        style.configure('TLabel', background=BOARD)
+        style = ttk.Style(self)
+        # Clam gives consistent CAD-like dividers on both Windows and Linux;
+        # retaining native ttk widgets keeps menus and assistive access usable.
+        if 'clam' in style.theme_names():
+            style.theme_use('clam')
+        style.configure('.', font=(theme.FAMILY, 9))
+        style.configure('TFrame', background=BOARD)
+        style.configure('TLabel', background=BOARD, foreground=INK)
+        style.configure('TButton', font=(theme.FAMILY, 9), padding=(8, 4),
+                        background=CHROME, foreground=INK, relief='raised')
+        style.map('TButton', background=[('active', '#dae5f1'), ('pressed', '#c4d7ec')])
+        style.configure('TPanedwindow', background=OUTLINE)
+        style.configure('Sash', sashthickness=5)
+        style.configure('TNotebook', background=BOARD, borderwidth=0)
+        style.configure('TNotebook.Tab', padding=(12, 5),
+                        background='#e4e9ef', foreground='#475368')
+        style.map('TNotebook.Tab',
+                  background=[('selected', '#ffffff'), ('active', '#f5f8fd')],
+                  foreground=[('selected', '#173e71')])
+        style.configure('Treeview', font=(theme.FAMILY, 9), rowheight=24,
+                        background='#ffffff', fieldbackground='#ffffff',
+                        foreground='#26364b', bordercolor='#c8d1de')
+        style.configure('Treeview.Heading', font=(theme.FAMILY, 9, 'bold'),
+                        background='#e5ebf2', foreground='#2e405a',
+                        padding=(7, 5), relief='flat')
+        style.map('Treeview', background=[('selected', '#cce0f7')],
+                  foreground=[('selected', '#173554')])
+        style.configure('TCombobox', padding=3)
+        style.map('TCombobox', fieldbackground=[('readonly', '#ffffff')])
 
     def _make_menu(self):
         menu=tk.Menu(self)
@@ -77,6 +93,25 @@ class Workbench(Instruments, tk.Tk):
                 else: m.add_command(label=pair[0],command=pair[1])
             menu.add_cascade(label=title,menu=m)
         self.config(menu=menu)
+        # On X11 without a window manager the native menu can be omitted from
+        # captured client-area screenshots. Provide an accessible in-window
+        # menu strip on non-Windows hosts; Windows retains its native menu.
+        if sys.platform != 'win32':
+            menustrip=tk.Frame(self,bg=CHROME,bd=1,relief='raised')
+            menustrip.pack(side='top',fill='x')
+            for caption, commands in items.items():
+                btn=tk.Menubutton(menustrip,text=caption,bg=CHROME,fg='#243c59',
+                                  activebackground='#d4e3f5',activeforeground='#193d67',
+                                  relief='flat',bd=0,padx=9,pady=3,
+                                  font=(theme.FAMILY,9),direction='below')
+                submenu=tk.Menu(btn,tearoff=False)
+                for pair in commands:
+                    if pair is None:
+                        submenu.add_separator()
+                    else:
+                        submenu.add_command(label=pair[0],command=pair[1])
+                btn.configure(menu=submenu)
+                btn.pack(side='left')
 
     def _tool(self, parent, icon, command, label, key=None, disabled=False, vertical=False):
         button=ToolButton(parent,icon,command,label,disabled)
@@ -85,11 +120,20 @@ class Workbench(Instruments, tk.Tk):
         return button
 
     def _separator(self,parent):
-        tk.Frame(parent,width=1,bg='#b8b8b8').pack(side='left',fill='y',padx=5,pady=4)
+        tk.Frame(parent,width=1,bg='#b7c3d1').pack(side='left',fill='y',padx=6,pady=5)
+
+    def _quick_component(self, parent, text, kind):
+        """Labeled shortcuts complement the original vector component toolbar."""
+        button = tk.Button(parent, text=text, command=lambda k=kind:self.set_mode(k),
+                           font=(theme.FAMILY, 9), bg=CHROME, fg='#244263',
+                           activebackground='#d2e3f7', activeforeground='#173c70',
+                           relief='groove', bd=1, padx=9, pady=2, cursor='hand2')
+        button.pack(side='left', padx=2, pady=3)
+        return button
 
     def _make_layout(self):
         self.tool_buttons={}
-        head=tk.Frame(self,bg='#f0f0f0',bd=1,relief='raised');head.pack(fill='x')
+        head=tk.Frame(self,bg=CHROME,bd=1,relief='raised');head.pack(fill='x')
         for icon,cmd,label in [('new',self.new,'New (Ctrl+N)'),('open',self.open,'Open (Ctrl+O)'),
                                ('save',self.save,'Save (Ctrl+S)')]:self._tool(head,icon,cmd,label)
         self._separator(head)
@@ -110,7 +154,7 @@ class Workbench(Instruments, tk.Tk):
         self.analysis_choice.pack(side='left',padx=8)
         ttk.Button(head,text='Experiments',command=self.course_browser).pack(side='left',padx=4)
         self.hint=tk.StringVar(value='Ready')
-        second=tk.Frame(self,bg='#f0f0f0',bd=1,relief='raised');second.pack(fill='x')
+        second=tk.Frame(self,bg=CHROME,bd=1,relief='raised');second.pack(fill='x')
         self._tool(second,'select',self.cancel,'Select (Esc)',key='select')
         self._tool(second,'wire',lambda:self.set_mode('wire'),'Place wire',key='wire')
         self._separator(second)
@@ -121,26 +165,52 @@ class Workbench(Instruments, tk.Tk):
         self._separator(second)
         self._tool(second,'rotate',self.rotate,'Rotate selected (Ctrl+R)')
         self._tool(second,'probe',self.probe,'Read simulated node voltages')
-        tk.Label(second,text='In use:',bg='#f0f0f0',font=(theme.FAMILY,9)).pack(side='left',padx=(16,4))
+        tk.Label(second,text='In Use:',bg=CHROME,fg='#3b4d61',font=(theme.FAMILY,9)).pack(side='left',padx=(16,4))
         self.in_use=ttk.Combobox(second,state='readonly',width=22);self.in_use.pack(side='left',padx=4)
         self.in_use.bind('<<ComboboxSelected>>',self.select_in_use)
+        # Multisim's classic component toolbar is separate from the standard
+        # and simulation toolbars. Every shortcut below places a real part.
+        placebar = tk.Frame(self, bg=BAR, bd=1, relief='groove')
+        placebar.pack(fill='x')
+        tk.Label(placebar, text='PLACE', bg=BAR, fg='#405673',
+                 font=(theme.FAMILY, 8, 'bold')).pack(side='left', padx=(10, 9))
+        for label, kind in [('Resistor', 'R'), ('Capacitor', 'C'),
+                            ('Inductor', 'L'), ('BJT NPN', 'NPN'),
+                            ('BJT PNP', 'PNP'), ('MOSFET', 'NMOS'),
+                            ('Op-Amp', 'OPAMP'), ('Current', 'I'),
+                            ('Potentiometer', 'POT'), ('Net Alias', 'NET')]:
+            self._quick_component(placebar, label, kind)
+        ttk.Button(placebar, text='Select Component…',
+                   command=self.component_browser).pack(side='right', padx=8, pady=2)
         body=ttk.PanedWindow(self,orient=tk.HORIZONTAL);body.pack(fill='both',expand=True)
-        left=ttk.Frame(body,width=185);body.add(left,weight=0)
-        title=tk.Frame(left,bg='#dfe8f3');title.pack(fill='x')
-        tk.Label(title,text='Design Toolbox',bg='#dfe8f3',fg='#243449',font=(theme.FAMILY,9,'bold'),anchor='w').pack(fill='x',padx=6,pady=4)
+        left=ttk.Frame(body,width=224);body.add(left,weight=0)
+        title=tk.Frame(left,bg=HEADER,bd=1,relief='groove');title.pack(fill='x')
+        tk.Frame(title, bg=ACCENT, width=4).pack(side='left',fill='y')
+        tk.Label(title,text='Design Toolbox',bg=HEADER,fg='#213c5c',
+                 font=(theme.FAMILY,9,'bold'),anchor='w').pack(fill='x',padx=9,pady=6)
         tools=ttk.Notebook(left);tools.pack(fill='both',expand=True)
+        project=ttk.Frame(tools);tools.add(project,text='Project')
+        self.project_tree=ttk.Treeview(project,show='tree',selectmode='browse')
+        self.project_tree.pack(fill='both',expand=True)
+        self.project_tree.bind('<Double-1>', self._project_open)
         hierarchy=ttk.Frame(tools);tools.add(hierarchy,text='Hierarchy')
         self.tree=ttk.Treeview(hierarchy,show='tree',selectmode='browse');self.tree.pack(fill='both',expand=True)
         self.tree.bind('<<TreeviewSelect>>',self.on_tree_select)
         components=ttk.Frame(tools);tools.add(components,text='Components')
-        self.parts_list=tk.Listbox(components,relief='flat',bg='white',font=(theme.FAMILY,9),highlightthickness=0)
+        self.parts_list=tk.Listbox(components,relief='flat',bg='white',fg='#233958',selectbackground='#bfd9f7',selectforeground='#173554',font=(theme.FAMILY,9),highlightthickness=0)
         self.parts_list.pack(fill='both',expand=True);self.parts_list.bind('<Double-Button-1>',self.list_place)
         self.palette_kinds=['IPROBE','R','C','L','V','I','GND','D','LED','SW','POT','NPN','PNP','NJF','PJF','NMOS','PMOS','SCR','TRIAC','DIAC','IGBT','OPAMP','NET']
         for kind in self.palette_kinds:self.parts_list.insert('end',kind+'  '+DEFAULTS[kind][0])
         middle=ttk.Frame(body);body.add(middle,weight=5)
-        docbar=tk.Frame(middle,bg='#d6d6d6',height=27);docbar.pack(fill='x')
-        self.doclabel=tk.Label(docbar,text='Design1',bg='white',fg='#222',font=(theme.FAMILY,9),padx=14,pady=4,relief='ridge',bd=1)
-        self.doclabel.pack(side='left',padx=(2,0),pady=(2,0))
+        docbar=tk.Frame(middle,bg='#d8e0ea',height=31,bd=1,relief='groove');docbar.pack(fill='x')
+        tk.Label(docbar,text='▦',bg='#d8e0ea',fg=ACCENT,font=(theme.FAMILY,11)).pack(side='left',padx=(8,4))
+        self.doclabel=tk.Label(docbar,text='Design1',bg='#ffffff',fg='#183a66',
+                               font=(theme.FAMILY,9,'bold'),padx=14,pady=4,relief='ridge',bd=1)
+        self.doclabel.pack(side='left',padx=(0,0),pady=(3,0))
+        tk.Label(docbar,text='Schematic capture',bg='#d8e0ea',fg='#596a80',
+                 font=(theme.FAMILY,9)).pack(side='left',padx=14)
+        tk.Label(docbar,text=f'Grid: {GRID}  •  Sheet 1 / 1',bg='#d8e0ea',
+                 fg='#596a80',font=(theme.FAMILY,8)).pack(side='right',padx=12)
         vertical=ttk.PanedWindow(middle,orient=tk.VERTICAL);vertical.pack(fill='both',expand=True)
         workspace=ttk.Frame(vertical);vertical.add(workspace,weight=5)
         self.canvas=tk.Canvas(workspace,bg=PAPER,bd=0,highlightthickness=0,scrollregion=(0,0,2100,1500),cursor='arrow')
@@ -155,7 +225,13 @@ class Workbench(Instruments, tk.Tk):
         self.canvas.bind('<Button-4>',lambda ev:self.zoom(1.1));self.canvas.bind('<Button-5>',lambda ev:self.zoom(.9))
         self.canvas.bind('<ButtonPress-2>',lambda e:self.canvas.scan_mark(e.x,e.y));self.canvas.bind('<B2-Motion>',lambda e:self.canvas.scan_dragto(e.x,e.y,gain=1))
         results_frame=ttk.Frame(vertical,height=165);vertical.add(results_frame,weight=1)
-        tk.Label(results_frame,text='Spreadsheet View',anchor='w',bg='#dfe8f3',fg='#243449',font=(theme.FAMILY,9,'bold'),padx=6,pady=3).pack(fill='x')
+        sheet_title=tk.Frame(results_frame,bg=HEADER,bd=1,relief='groove');sheet_title.pack(fill='x')
+        tk.Frame(sheet_title,bg=ACCENT,width=4).pack(side='left',fill='y')
+        tk.Label(sheet_title,text='Spreadsheet View',anchor='w',bg=HEADER,fg='#213c5c',
+                 font=(theme.FAMILY,9,'bold'),padx=10,pady=4).pack(side='left')
+        self.sheet_summary=tk.StringVar(value='4 components')
+        tk.Label(sheet_title,textvariable=self.sheet_summary,bg=HEADER,fg='#566780',
+                 font=(theme.FAMILY,8)).pack(side='right',padx=10)
         results=ttk.Notebook(results_frame,height=118);results.pack(fill='both',expand=True);self.report_tabs=results
         for label in ['Results','Nets','Components','Simulation','Models','BOM','Diagnostics']:
             f=ttk.Frame(results);results.add(f,text=label)
@@ -169,16 +245,37 @@ class Workbench(Instruments, tk.Tk):
             else:
                 t=tk.Text(f,height=4,wrap='word',font=(theme.MONO,9),bg='white',fg=INK,relief='flat',padx=5,pady=4)
                 t.pack(fill='both',expand=True);t.config(state='disabled');setattr(self,'panel_'+label.lower(),t)
-        right=tk.Frame(body,width=36,bg='#f0f0f0',bd=1,relief='raised');body.add(right,weight=0)
+        right=tk.Frame(body,width=41,bg=CHROME,bd=1,relief='raised');body.add(right,weight=0)
+        tk.Label(right,text='INSTR.',bg='#dce5f0',fg='#3f587a',
+                 font=(theme.FAMILY,7,'bold'),padx=3,pady=5).pack(side='top',fill='x')
         for icon,cmd,label,disabled in [('meter',self.multimeter,'Multimeter: simulated DC node readings',False),
                 ('scope',self.scope,'Oscilloscope: transient node voltages',False),('generator',self.generator,'Function generator: configure voltage source',False),
                 ('bode',self.bode,'Bode: AC small-signal analysis',False),('logic',self.logic,'Logic traces: threshold sampled analog voltages',False),('spectrum',self.spectrum_panel,'Sampled voltage spectrum',False),
                 ('probe',self.probe,'Read simulated node voltages',False)]:self._tool(right,icon,cmd,label,disabled=disabled,vertical=True)
-        bottom=tk.Frame(self,bg='#f0f0f0',bd=1,relief='sunken');bottom.pack(side='bottom',fill='x',before=body)
-        tk.Label(bottom,textvariable=self.hint,bg='#f0f0f0',fg='#333',anchor='w',font=(theme.FAMILY,9)).pack(side='left',padx=6,pady=3)
-        self.coordlabel=tk.Label(bottom,text='X: 0  Y: 0',bg='#f0f0f0',font=(theme.FAMILY,9));self.coordlabel.pack(side='right',padx=8)
+        bottom=tk.Frame(self,bg='#e7edf3',bd=1,relief='sunken');bottom.pack(side='bottom',fill='x',before=body)
+        tk.Label(bottom,textvariable=self.hint,bg='#e7edf3',fg='#33465d',anchor='w',
+                 font=(theme.FAMILY,9)).pack(side='left',padx=8,pady=4)
+        tk.Label(bottom,text='OCW  |  ngspice',bg='#e7edf3',fg='#536981',
+                 font=(theme.FAMILY,8)).pack(side='right',padx=9)
+        self.coordlabel=tk.Label(bottom,text='X: 0  Y: 0',bg='#e7edf3',
+                                 fg='#2d4768',font=(theme.MONO,9))
+        self.coordlabel.pack(side='right',padx=9)
+        tk.Frame(bottom,bg='#bac9db',width=1).pack(side='right',fill='y',pady=2)
         self.history=[];self.future=[];self.tool_buttons['select'].selected(True)
         self.report_tabs.select(2)
+        tools.select(project)
+
+    def _project_open(self, event=None):
+        selected = self.project_tree.selection()
+        if not selected:
+            return
+        if selected[0] == 'project_components':
+            self.report_tabs.select(2)
+        elif selected[0] == 'project_netlist':
+            self.preview_netlist()
+        elif selected[0] == 'project_schematic':
+            self.canvas.focus_set()
+            self.fit()
 
     def select_sheet(self,event=None):
         chosen=self.component_sheet.selection()
@@ -199,6 +296,14 @@ class Workbench(Instruments, tk.Tk):
     def update_labels(self):
         self.title('Open Circuit Workbench — '+self.doc.title)
         self.doclabel.configure(text=self.doc.title)
+        self.sheet_summary.set(f'{len(self.doc.parts)} components  •  {len(self.doc.wires)} wires')
+        # The project navigator is a real shortcut into existing views.
+        self.project_tree.delete(*self.project_tree.get_children())
+        pid=self.project_tree.insert('', 'end', iid='project_design',
+                                     text='▣  '+self.doc.title, open=True)
+        self.project_tree.insert(pid,'end',iid='project_schematic',text='▦  Schematic1')
+        self.project_tree.insert(pid,'end',iid='project_components',text='▤  Component list')
+        self.project_tree.insert(pid,'end',iid='project_netlist',text='≡  SPICE netlist')
         self.tree.delete(*self.tree.get_children())
         root=self.tree.insert('', 'end', iid='design', text=self.doc.title,open=True)
         for group in ['Analog','Sources','References','Others']:
@@ -412,9 +517,14 @@ class Workbench(Instruments, tk.Tk):
             self.canvas.create_text(*self.xp(tf(46,0)),text=p.value,anchor={0:'w',1:'n',2:'e',3:'s'}[a],fill=BLUE,font=(theme.FAMILY,max(8,int(9*self.scale_factor))))
             return
         if kind in ('R','POT'):
-            line([(-40,0),(-22,0)]); line([(22,0),(40,0)])
-            line([(-22,0),(-22,-9),(22,-9),(22,9),(-22,9),(-22,0)])
-            if kind=='POT':line([(0,40),(0,10)],arrow='last')
+            # Original ANSI zig-zag resistor glyph. Terminals stay at +/-40
+            # so changing the visual representation never changes net geometry.
+            line([(-40,0),(-22,0)])
+            line([(-22,0),(-17,-9),(-11,9),(-5,-9),(1,9),
+                  (7,-9),(13,9),(19,-9),(22,0)])
+            line([(22,0),(40,0)])
+            if kind=='POT':
+                line([(0,40),(0,11)],arrow='last')
         elif kind=='C':
             line([(-40,0),(-6,0)]);line([(6,0),(40,0)])
             line([(-6,-16),(-6,16)]);line([(6,-16),(6,16)])
@@ -477,7 +587,7 @@ class Workbench(Instruments, tk.Tk):
             self.canvas.create_text(*self.xp(textpos),text=p.value,anchor='center' if kind!='V' else 'w',fill=GREY,font=(theme.FAMILY,max(8,int(9*self.scale_factor))))
         for pt in p.pins():
             px,py=self.xp(pt);r=max(2.2,2.7*self.scale_factor)
-            self.canvas.create_oval(px-r,py-r,px+r,py+r,fill=BLUE,outline='white',width=1)
+            self.canvas.create_oval(px-r,py-r,px+r,py+r,fill=PAPER,outline=BLUE,width=1,tags='terminal')
         if p.id==self.selected:
             cx,cy=self.xp((x,y));r=49*self.scale_factor
             self.canvas.create_rectangle(cx-r,cy-r,cx+r,cy+r,dash=(4,3),outline='#4298d5')
@@ -492,7 +602,7 @@ class Workbench(Instruments, tk.Tk):
             if g>=8:
                 for xx in range(0,w+1,g):
                     for yy in range(0,h+1,g):
-                        self.canvas.create_rectangle(xx,yy,xx+0.6,yy+0.6,outline='#d7d7d7')
+                        self.canvas.create_rectangle(xx,yy,xx+1,yy+1,outline='#cfd7e2',fill='#cfd7e2',width=0,tags='worksheet_grid')
         # NI-like worksheet origin rulers; they are original drawing commands.
         self.canvas.create_line(0,0,w,0,fill=OUTLINE)
         for x in range(0,int(docw)+1,200):
@@ -503,13 +613,16 @@ class Workbench(Instruments, tk.Tk):
             a,b=wi.a,wi.b
             route=[a,(b[0],a[1]),b] if a[0]!=b[0] and a[1]!=b[1] else [a,b]
             self._line(route,fill=RED,width=max(1.4,1.7*self.scale_factor))
-        # Show actual connected pin locations as red connection dots.
+        for part in self.doc.parts:self._shape(part)
+        # Connection junctions must be painted *after* the symbols so terminal
+        # circles cannot obscure the red electrical connection indicators.
         points={tuple(pt) for w in self.doc.wires for pt in (w.a,w.b)}
         for p in self.doc.parts:
             for pt in p.pins():
                 if pt in points:
-                    x,y=self.xp(pt);self.canvas.create_oval(x-3,y-3,x+3,y+3,fill=RED,outline=RED)
-        for part in self.doc.parts:self._shape(part)
+                    px,py=self.xp(pt)
+                    self.canvas.create_oval(px-3,py-3,px+3,py+3,fill=RED,outline=RED,
+                                            tags='junction')
         self.update_labels()
 
     def new(self):
