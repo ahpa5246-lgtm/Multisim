@@ -2,10 +2,14 @@
 import tkinter as tk
 from . import theme
 
+CHROME = '#edf0f4'
+ACTIVE = '#d3e3f7'
+BORDER = '#a6b9cf'
+
 class ToolButton(tk.Canvas):
     def __init__(self, parent, icon, command, label, disabled=False):
-        super().__init__(parent,width=27,height=25,background='#f0f0f0',
-                         highlightthickness=1,highlightbackground='#f0f0f0',
+        super().__init__(parent,width=30,height=28,background=CHROME,
+                         bd=0,highlightthickness=1,highlightbackground=CHROME,
                          takefocus=not disabled, cursor='arrow' if disabled else 'hand2')
         self.command=command; self.disabled=disabled; self.tip=None; self.timer=None
         self.label=label; self.active=False
@@ -14,17 +18,24 @@ class ToolButton(tk.Canvas):
         self.bind('<Button-1>',lambda e:self.invoke())
         self.bind('<Return>',lambda e:self.invoke());self.bind('<space>',lambda e:self.invoke())
         self.bind('<FocusIn>',lambda e:self.configure(highlightbackground='#7ca4cb'))
-        self.bind('<FocusOut>',lambda e:self.configure(highlightbackground='#f0f0f0'))
+        self.bind('<FocusOut>',lambda e:self.configure(highlightbackground=CHROME))
     def invoke(self):
         if not self.disabled:return self.command()
     def selected(self,value):
         self.active=value
-        self.configure(bg='#d9e7f5' if value else '#f0f0f0',
-                       highlightbackground='#7ca4cb' if value else '#f0f0f0')
+        self.configure(bg=ACTIVE if value else CHROME,
+                       highlightbackground=BORDER if value else CHROME)
     def enter(self,event):
-        self.configure(bg='#e1eaf4',highlightbackground='#99b4d1')
-        self.timer=self.after(450,self.show_tip)
+        if self.disabled:
+            return
+        self.configure(bg='#dfe9f6',highlightbackground=BORDER)
+        if self.timer:
+            self.after_cancel(self.timer)
+        self.timer=self.after(600,self.show_tip)
     def show_tip(self):
+        self.timer=None
+        if self.tip or not self.winfo_exists():
+            return
         self.tip=tk.Toplevel(self);self.tip.overrideredirect(True)
         self.tip.geometry(f'+{self.winfo_rootx()+12}+{self.winfo_rooty()+29}')
         tk.Label(self.tip,text=self.label,bg='#ffffe1',fg='#222',relief='solid',bd=1,
