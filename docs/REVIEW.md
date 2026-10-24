@@ -130,3 +130,15 @@ Example results: p110 integrator slope −5341.514 V/s versus ideal −5319.149 
 Remaining: not every numerical/related exercise or manual graphical construction is reproduced; exact manufacturer models for selected absent names; full temperature/noise/tolerance/thyristor-quadrant validation; realistic IGBT switching; 555/digital/HDL/MCU/ADC/DAC/transformer/relay families; NI trigger/timebase controls, hierarchy, Windows packaging and .ms14 conversion. No NI executable/reference data is available. Native Qt added-control integration is unverified; this milestone exercises the independent Python workbench. Next bounded task: complete the individual textbook numerical-example ledger and add selected exact manufacturer models, then a separately licensed 555/digital path with timing regressions.
 
 CI caught Python3.11 rejecting a reused quote inside the new course-UI f-string, although local Python3.12 and its feature_version grammar flag accepted it. Moved page formatting outside the f-string. The earlier grammar-only check is insufficient to certify an older interpreter; actual Python3.11 CI is required before merge.
+
+
+## 2026-10-24 — Classic CAD shell redraw (PR #14)
+
+- Compared against NI's public *Getting Started with NI Circuit Design Suite* Chapter 2 screen anatomy, not proprietary binaries or icons.
+- Changed only the independent Tk editor shell: three-tier command/component toolbars, visible X11/Windows menus, original distinct instrument icons, responsive notebook/dock appearance, project explorer with real actions, styled searchable model selector, zigzag ANSI resistor symbol, consistent pin and junction paint order, bottom results/status chrome.
+- The electrical terminal coordinates, document serialization, device database, solver routines and separate Qucs-S submodule were not changed.
+- Added `prototype/tests/test_classic_ui.py` to assert real project actions, part placement, symbol render layers and native widgets.
+- Added `prototype/scripts/capture_classic_ui.py` with GitHub Actions Xvfb/Pillow capture to upload **actual running Tk app** PNGs of the workbench, component dialog and generator, not mockups.
+- At branch revision `2432d365d`, Linux workbench workflow: **passed** including Python compile and GUI tests; subsequent screenshot expansion is retested by the pull request workflow.
+- Blocking parity gates: specific NI release pixel comparison unperformed; Windows high-DPI/manual click audit still needed; native Multisim project format interoperability, advanced instrumentation and equivalent NI simulation outputs still missing.
+- Acceptance: screenshots must contain a readable menus/toolbars/workspace with real RC wiring and modal picker; new GUI tests must pass before merging.
