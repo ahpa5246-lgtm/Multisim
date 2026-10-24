@@ -6,7 +6,9 @@
 
 For the independent, directly runnable Multisim-inspired interface, open `prototype/START_WINDOWS.bat` (Python with Tcl/Tk required), or run `python prototype/run_workbench.py`. See [prototype instructions](prototype/README.md). This GUI now invokes an independently installed ngspice engine for transient, DC and AC analyses. It includes source waveform controls, scope, meter, Bode, sampled spectrum and threshold traces. Qucs-S below remains a separate mature editor. See the [functional audit](docs/OPEN_SOURCE_AUDIT.md) for remaining gaps.
 
-![Compact desktop workspace](docs/evidence/workspace-after.png)
+**New classic CAD interface (October 2026):** [view the source changes](https://github.com/ahpa5246-lgtm/Multisim/pull/14) and [download three genuine application screenshots](https://github.com/ahpa5246-lgtm/Multisim/actions/runs/40126252710) (Actions artifact: `classic-workbench-screenshot`). These include the schematic workbench, the searchable component selector, and the working function-generator dialog with a live waveform preview. See [implementation and limitations](docs/CLASSIC_UI.md).
+
+[Historical workspace screenshot before the redesign](docs/evidence/workspace-after.png)
 
 The component database additionally includes **1,229 Qucs-S-derived device models**, multi-terminal BJT/op-amp capture, DC sweeps, and Models/BOM/Diagnostics panels. See [source and interoperability notes](docs/INTEROPERABILITY_RESEARCH.md).
 
