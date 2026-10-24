@@ -111,22 +111,112 @@ class Instruments:
             except ValueError as e:messagebox.showerror('Invalid settings',str(e),parent=win)
         ttk.Button(win,text='Apply',command=apply).grid(row=5,column=1,padx=12,pady=10,sticky='e')
     def generator(self):
-        sources=[p for p in self.doc.parts if p.kind=='V']
-        if not sources:messagebox.showinfo('Function Generator','Place a voltage source first.',parent=self);return
-        win=tk.Toplevel(self);win.title('XFG — Function Generator');win.transient(self)
-        selected=tk.StringVar(value=self.selected if self.selected in [p.id for p in sources] else sources[0].id)
-        form=tk.StringVar(value='Sine');fields={}
+        """Live editing front panel; Apply still writes to a real SPICE source."""
+        sources = [p for p in self.doc.parts if p.kind == 'V']
+        if not sources:
+            messagebox.showinfo('Function Generator','Place a voltage source first.',parent=self)
+            return
+        win = tk.Toplevel(self)
+        win.title('XFG — Function Generator')
+        win.geometry('715x420')
+        win.minsize(615,390)
+        win.configure(bg='#e4e8ed')
+        win.transient(self)
+        win.columnconfigure(0,weight=3)
+        win.columnconfigure(1,weight=4)
+        selected = tk.StringVar(value=self.selected if self.selected in [p.id for p in sources] else sources[0].id)
+        form = tk.StringVar(value='Sine')
+        fields = {}
+
+        heading = tk.Frame(win,bg='#d8e3f1',bd=1,relief='groove')
+        heading.grid(row=0,column=0,columnspan=2,sticky='ew')
+        tk.Frame(heading,bg='#275d9b',width=5).pack(side='left',fill='y')
+        tk.Label(heading,text='XFG  •  FUNCTION GENERATOR',bg='#d8e3f1',
+                 fg='#1f4268',font=(theme.FAMILY,11,'bold'),padx=13,pady=10).pack(side='left')
+        tk.Label(heading,text='SPICE voltage source',bg='#d8e3f1',
+                 fg='#637791',font=(theme.FAMILY,9)).pack(side='right',padx=12)
+
+        settings = ttk.LabelFrame(win,text='Signal configuration')
+        settings.grid(row=1,column=0,sticky='nsew',padx=(12,7),pady=(12,8))
+        settings.columnconfigure(1,weight=1)
+        display = ttk.LabelFrame(win,text='Waveform preview')
+        display.grid(row=1,column=1,sticky='nsew',padx=(7,12),pady=(12,8))
+        display.columnconfigure(0,weight=1)
+        display.rowconfigure(0,weight=1)
+        win.rowconfigure(1,weight=1)
+
         def row(i,title,var,values=None):
-            ttk.Label(win,text=title).grid(row=i,column=0,padx=12,pady=6,sticky='w')
-            widget=ttk.Combobox(win,textvariable=var,values=values,state='readonly') if values else ttk.Entry(win,textvariable=var)
-            widget.grid(row=i,column=1,padx=12,pady=6)
-        row(0,'Source',selected,[p.id for p in sources]);row(1,'Waveform',form,['DC','Sine','Square','Triangle'])
-        for i,(name,value) in enumerate([('Amplitude (V peak)','5'),('Offset (V)','0'),('Frequency (Hz)','1000'),('Duty cycle (%)','50')],2):
-            fields[name]=tk.StringVar(value=value);row(i,name,fields[name])
+            ttk.Label(settings,text=title).grid(row=i,column=0,padx=(12,5),pady=7,sticky='w')
+            widget=(ttk.Combobox(settings,textvariable=var,values=values,
+                                 state='readonly',width=17)
+                    if values else ttk.Entry(settings,textvariable=var,width=18))
+            widget.grid(row=i,column=1,padx=(3,12),pady=7,sticky='ew')
+        row(0,'Source',selected,[p.id for p in sources])
+        row(1,'Waveform',form,['DC','Sine','Square','Triangle'])
+        for i,(name,value) in enumerate([
+            ('Amplitude (V peak)','5'),('Offset (V)','0'),
+            ('Frequency (Hz)','1000'),('Duty cycle (%)','50')],2):
+            fields[name] = tk.StringVar(value=value)
+            row(i,name,fields[name])
+
+        screen = tk.Canvas(display,bg='#101b29',height=235,
+                           highlightthickness=1,highlightbackground='#425a77')
+        screen.grid(row=0,column=0,sticky='nsew',padx=9,pady=(9,6))
+        display_caption = tk.StringVar(value='Preview • calculated display, not solver output')
+        ttk.Label(display,textvariable=display_caption,justify='left').grid(
+            row=1,column=0,sticky='w',padx=10,pady=(0,10))
+
+        def preview(*_):
+            screen.delete('all')
+            w=max(270,screen.winfo_width());h=max(165,screen.winfo_height())
+            left,right,top,bottom=28,w-15,25,h-27
+            for i in range(6):
+                x=left+(right-left)*i/5
+                screen.create_line(x,top,x,bottom,fill='#253851')
+            for i in range(5):
+                y=top+(bottom-top)*i/4
+                screen.create_line(left,y,right,y,fill='#253851')
+            screen.create_line(left,(top+bottom)/2,right,(top+bottom)/2,
+                               fill='#4b657e',dash=(4,4))
+            try:
+                amp=number(fields['Amplitude (V peak)'].get())
+                offset=number(fields['Offset (V)'].get())
+                duty=number(fields['Duty cycle (%)'].get())
+                if amp<0 or not 0<duty<100:
+                    raise ValueError('Invalid amplitude or duty cycle')
+                wave=form.get()
+                peak=max(1,abs(offset)+amp)*1.35
+                coords=[]
+                for i in range(401):
+                    t=2*i/400
+                    phase=t%1
+                    if wave=='DC':
+                        value=offset
+                    elif wave=='Sine':
+                        value=offset+amp*math.sin(2*math.pi*t)
+                    elif wave=='Square':
+                        value=offset+(amp if phase<duty/100 else -amp)
+                    else:
+                        value=offset+amp*(4*abs(phase-.5)-1)
+                    x=left+(right-left)*i/400
+                    y=(top+bottom)/2-(bottom-top)*.43*value/peak
+                    coords.extend((x,y))
+                screen.create_line(*coords,fill='#5ad7f6',width=2,
+                                   smooth=False)
+                screen.create_text(left+5,top+8,text=f'{wave.upper()}  •  {amp:g} Vpk',
+                                   fill='#c9dded',anchor='w',font=(theme.MONO,9))
+                display_caption.set('Calculated preview • apply source, then run ngspice')
+            except (ValueError,OverflowError):
+                display_caption.set('Enter valid signal settings to preview')
+        screen.bind('<Configure>',preview)
+        for var in [form,*fields.values()]:
+            var.trace_add('write',preview)
+
         def apply():
             try:
                 amp,offset,freq,duty=[number(x.get()) for x in fields.values()]
-                if amp<0 or freq<=0 or not 0<duty<100:raise ValueError('Amplitude must be nonnegative; frequency positive; duty 0–100%')
+                if amp<0 or freq<=0 or not 0<duty<100:
+                    raise ValueError('Amplitude must be nonnegative; frequency positive; duty 0–100%')
                 if form.get()=='DC':value=str(offset)
                 elif form.get()=='Sine':value=f'SIN({offset:g} {amp:g} {freq:g})'
                 else:
@@ -135,11 +225,21 @@ class Instruments:
                     fall=rise;width=0 if form.get()=='Triangle' else max(0,period*duty/100-rise)
                     value=f'PULSE({offset-amp:.12g} {offset+amp:.12g} 0 {rise:.12g} {fall:.12g} {width:.12g} {period:.12g})'
                 source_value(value)
-                part=next(p for p in self.doc.parts if p.id==selected.get());self.checkpoint();part.value=value;self.render();win.destroy()
+                part=next(p for p in self.doc.parts if p.id==selected.get())
+                self.checkpoint();part.value=value;self.render();win.destroy()
                 self.status('Source waveform applied — run transient to measure it')
-            except ValueError as e:messagebox.showerror('Generator settings',str(e),parent=win)
-        ttk.Label(win,text='DC uses Offset. Amplitude is peak about Offset.\nAC input source is selected in Analysis Settings.',justify='left').grid(row=6,column=0,columnspan=2,padx=12,pady=8)
-        ttk.Button(win,text='Apply to source',command=apply).grid(row=7,column=1,padx=12,pady=10,sticky='e')
+            except ValueError as e:
+                messagebox.showerror('Generator settings',str(e),parent=win)
+
+        ttk.Label(win,text='DC uses Offset. AC sweep uses the source selected in Analysis Settings.',
+                  font=(theme.FAMILY,9)).grid(row=2,column=0,columnspan=2,
+                                              sticky='w',padx=16,pady=(0,4))
+        # Keep the apply button as a direct child: native keyboard focus and
+        # existing instrument interaction tests continue to work.
+        ttk.Button(win,text='Apply to source',command=apply).grid(
+            row=3,column=1,sticky='e',padx=16,pady=(0,12))
+        win.after_idle(preview)
+
     def multimeter(self):
         result=self._captured()
         if not result:return
