@@ -36,6 +36,39 @@ def main():
         path.parent.mkdir(parents=True, exist_ok=True)
         image.save(path)
         print(f"Captured {path} ({image.width}x{image.height})")
+
+        # Capture genuine modal picker and generator dialogs, too. Their
+        # contents are native live Tk widgets attached to the current app.
+        app.component_browser()
+        app.update()
+        picker = next(w for w in app.winfo_children()
+                      if w.winfo_class() == "Toplevel"
+                      and "Select a Component" in w.title())
+        picker.geometry("1060x680+80+80")
+        app.update_idletasks()
+        app.update()
+        ImageGrab.grab(bbox=(picker.winfo_rootx(), picker.winfo_rooty(),
+                             picker.winfo_rootx()+picker.winfo_width(),
+                             picker.winfo_rooty()+picker.winfo_height())
+                       ).save(path.with_name("classic-component-picker.png"))
+        picker.destroy()
+        app.update()
+
+        app.generator()
+        app.update_idletasks()
+        app.update()
+        generator = next(w for w in app.winfo_children()
+                         if w.winfo_class() == "Toplevel"
+                         and "Function Generator" in w.title())
+        generator.geometry("+180+140")
+        app.update_idletasks()
+        app.update()
+        ImageGrab.grab(bbox=(generator.winfo_rootx(), generator.winfo_rooty(),
+                             generator.winfo_rootx()+generator.winfo_width(),
+                             generator.winfo_rooty()+generator.winfo_height())
+                       ).save(path.with_name("classic-function-generator.png"))
+        print("Captured real component catalog and generator dialogs")
+        generator.destroy()
     finally:
         app.destroy()
 
