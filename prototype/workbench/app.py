@@ -498,9 +498,14 @@ class Workbench(Instruments, tk.Tk):
             self.canvas.create_text(*self.xp(tf(46,0)),text=p.value,anchor={0:'w',1:'n',2:'e',3:'s'}[a],fill=BLUE,font=(theme.FAMILY,max(8,int(9*self.scale_factor))))
             return
         if kind in ('R','POT'):
-            line([(-40,0),(-22,0)]); line([(22,0),(40,0)])
-            line([(-22,0),(-22,-9),(22,-9),(22,9),(-22,9),(-22,0)])
-            if kind=='POT':line([(0,40),(0,10)],arrow='last')
+            # Original ANSI zig-zag resistor glyph. Terminals stay at +/-40
+            # so changing the visual representation never changes net geometry.
+            line([(-40,0),(-22,0)])
+            line([(-22,0),(-17,-9),(-11,9),(-5,-9),(1,9),
+                  (7,-9),(13,9),(19,-9),(22,0)])
+            line([(22,0),(40,0)])
+            if kind=='POT':
+                line([(0,40),(0,11)],arrow='last')
         elif kind=='C':
             line([(-40,0),(-6,0)]);line([(6,0),(40,0)])
             line([(-6,-16),(-6,16)]);line([(6,-16),(6,16)])
