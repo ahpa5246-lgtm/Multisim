@@ -24,9 +24,21 @@ def number(value):
     return out
 
 
+def am_parameters(value):
+    """Parse AM(carrier_Vpk modulating_Vpk carrier_Hz modulating_Hz)."""
+    match=re.fullmatch(r'AM\(([^()]*)\)',str(value).strip(),re.I)
+    if not match:return None
+    values=[number(piece) for piece in match[1].replace(',',' ').split()]
+    if len(values)!=4 or values[0]<=0 or values[1]<0 or values[2]<=0 or values[3]<=0 or values[2]<=values[3]:
+        raise ValueError('Use AM(positive_carrier_Vpk nonnegative_modulating_Vpk carrier_Hz modulating_Hz); carrier_Hz must exceed modulating_Hz')
+    return tuple(values)
+
+
 def source_value(value):
     value=str(value).strip()
     if '\n' in value or '\r' in value:raise ValueError('Source cannot contain directives')
+    am=am_parameters(value)
+    if am is not None:return 'AM('+' '.join(f'{v:.12g}' for v in am)+')'
     match=re.fullmatch(r'(SIN|PULSE)\(([^()]*)\)',value,re.I)
     if not match:return f'DC {number(value):.12g} AC 1'
     kind=match[1].upper();vals=[number(x) for x in match[2].replace(',',' ').split()]
@@ -129,8 +141,20 @@ def compile_deck(doc,analysis):
         elif p.kind=='IPROBE':
             lines.append(f'V{p.id} {a} {b} DC 0 AC 0');sources.append(p.id)
         elif p.kind=='V':
-            value=source_value(p.value).replace('AC 1','AC 1' if p.id==excitation else 'AC 0')
-            lines.append(f'V{p.id} {a} {b} {value}');sources.append(p.id)
+            am=am_parameters(p.value)
+            if am is not None:
+                if analysis.kind!='tran':
+                    raise ValueError('AM sources currently support transient analysis only')
+                vc,vm,fc,fm=am
+                # Keep a zero-volt source in series to retain V-source current probing.
+                # The behavioral source is evaluated by ngspice at each solver step.
+                internal='OCW_AM_'+p.id
+                lines.append(f'B{p.id} {a} {internal} V=({vc:.12g}+{vm:.12g}*cos(2*pi*{fm:.12g}*time))*cos(2*pi*{fc:.12g}*time)')
+                lines.append(f'V{p.id} {internal} {b} DC 0 AC 0')
+            else:
+                value=source_value(p.value).replace('AC 1','AC 1' if p.id==excitation else 'AC 0')
+                lines.append(f'V{p.id} {a} {b} {value}')
+            sources.append(p.id)
         elif p.kind in ('D','LED'):
             if p.kind=='D' and p.value!='Generic':raise ValueError(f'Unknown diode model: {p.value}; select a library model or Generic')
             if p.kind=='LED' and p.value not in ('Red','Generic'):raise ValueError('LED supports Red / Generic educational model only')
