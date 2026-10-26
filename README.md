@@ -1,5 +1,32 @@
 # Open Circuit Workbench
 
+## Download, setup and project overview
+
+A circuit workbench combining a Python editor with a pinned Qucs-S foundation.
+
+Circuit capture; ngspice measurements; instruments; independent numerical regression checks.
+
+![Project workflow illustration](docs/project-overview.svg)
+
+[Download source ZIP](https://github.com/ahpa5246-lgtm/Multisim/archive/refs/heads/main.zip) · [Changes and branches](https://github.com/ahpa5246-lgtm/Multisim/branches) · [Verification notes](docs/QUALITY_REVIEW.md)
+
+The ZIP contains source code. Installation steps and external runtime requirements are listed below.
+
+```bash
+git clone --recurse-submodules https://github.com/ahpa5246-lgtm/Multisim.git
+cd Multisim
+```
+
+From the repository directory:
+
+```text
+# Use the documented platform-specific launcher in prototype/.
+# Qucs-S builds also require the pinned submodule and Qt toolchain.
+```
+
+The diagram is a project illustration. Test results and runtime limitations are recorded in [the review](docs/QUALITY_REVIEW.md); it is not a production-readiness certification.
+
+
 نسخة مكتبية مجانية مبنية على Qucs-S، تستهدف تدريجيًا سير عمل مألوفًا لمستخدمي NI Multisim. هذا المستودع ليس منتج NI ولا نسخة مكتملة من Multisim.
 
 ## Desktop prototype
