@@ -75,7 +75,7 @@ class WorkspaceTests(unittest.TestCase):
         win=next(w for w in a.winfo_children() if w.winfo_class()=='Toplevel')
         button=next(w for w in win.winfo_children() if isinstance(w,ttk.Button))
         button.invoke();a.update()
-        self.assertEqual(next(p for p in a.doc.parts if p.kind=='V').value,'SIN(0 5 1000)')
+        self.assertEqual(next(p for p in a.doc.parts if p.kind=='V').value,'5')
         self.assertIsNone(a.result)
     @unittest.skipUnless(shutil.which('ngspice') or os.environ.get('OCW_NGSPICE'),'Requires ngspice')
     def test_bode_and_meter_panels_use_result(self):

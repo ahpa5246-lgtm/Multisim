@@ -3,6 +3,7 @@ import cmath
 import copy
 import math
 import queue
+import re
 import threading
 import tkinter as tk
 from . import theme
@@ -212,13 +213,44 @@ class Instruments:
         for var in [form,*fields.values()]:
             var.trace_add('write',preview)
 
+        original = {}
+        def load_source(*_):
+            part = next(p for p in sources if p.id == selected.get())
+            value = part.value.strip()
+            match = re.fullmatch(r'(SIN|PULSE)\(([^()]*)\)', value, re.I)
+            try:
+                source_value(value)
+                if not match:
+                    wave, amp, offset, freq, duty = 'DC', 0, number(value), 1000, 50
+                else:
+                    nums = [number(v) for v in match[2].replace(',', ' ').split()]
+                    if match[1].upper() == 'SIN':
+                        offset, amp, freq = nums
+                        wave, duty = 'Sine', 50
+                    else:
+                        low, high, delay, rise, fall, width, period = nums
+                        amp, offset, freq = (high-low)/2, (high+low)/2, 1/period
+                        wave = 'Triangle' if width <= period*1e-5 and abs(rise-period/2) < period*1e-5 else 'Square'
+                        duty = 50 if wave == 'Triangle' else 100*(width+rise)/period
+                form.set(wave)
+                for var, val in zip(fields.values(), (amp, offset, freq, duty)):
+                    var.set(f'{val:.12g}')
+                original.update(value=value, settings=(form.get(), *(v.get() for v in fields.values())))
+            except ValueError:
+                original.clear()
+                display_caption.set('Unsupported source value; edit the component properties first')
+        selected.trace_add('write', load_source)
+        load_source()
+
         def apply():
             try:
                 amp,offset,freq,duty=[number(x.get()) for x in fields.values()]
                 if amp<0 or freq<=0 or not 0<duty<100:
                     raise ValueError('Amplitude must be nonnegative; frequency positive; duty 0–100%')
-                if form.get()=='DC':value=str(offset)
-                elif form.get()=='Sine':value=f'SIN({offset:g} {amp:g} {freq:g})'
+                unchanged = (form.get(), *(v.get() for v in fields.values())) == original.get('settings')
+                if unchanged:value=original['value']
+                elif form.get()=='DC':value=str(offset)
+                elif form.get()=='Sine':value=f'SIN({offset:.12g} {amp:.12g} {freq:.12g})'
                 else:
                     period=1/freq
                     rise=period/2 if form.get()=='Triangle' else min(period*1e-4,period*duty/200,period*(1-duty/100)/2)
@@ -231,7 +263,7 @@ class Instruments:
             except ValueError as e:
                 messagebox.showerror('Generator settings',str(e),parent=win)
 
-        ttk.Label(win,text='DC uses Offset. AC sweep uses the source selected in Analysis Settings.',
+        ttk.Label(win,text='DC uses Offset. Edited pulses use zero delay and calculated edges; unchanged pulses are preserved.',
                   font=(theme.FAMILY,9)).grid(row=2,column=0,columnspan=2,
                                               sticky='w',padx=16,pady=(0,4))
         # Keep the apply button as a direct child: native keyboard focus and
@@ -274,7 +306,7 @@ class Instruments:
         output=tk.StringVar(value=next((n for n in nodes if node_id(n)==result.labels.get('out')),nodes[-1]));reference=tk.StringVar(value=next((n for n in nodes if node_id(n)==result.labels.get('input',result.labels.get('raw'))),nodes[0]));threshold=tk.StringVar(value='2.5');maxfreq=tk.StringVar(value='0')
         bar=ttk.Frame(win);bar.pack(fill='x',padx=10,pady=8)
         for text,var in [('Output node',output),('Input / CH2 node',reference)]:
-            ttk.Label(bar,text=text).pack(side='left',padx=5);ttk.Combobox(bar,textvariable=var,values=nodes,state='readonly',width=19).pack(side='left')
+            ttk.Label(bar,text=text).pack(side='left',padx=5);ttk.Combobox(bar,textvariable=var,values=(['Off']+nodes if mode=='Oscilloscope' and var is reference else nodes),state='readonly',width=19).pack(side='left')
         if mode=='Logic traces':ttk.Label(bar,text='Threshold (V)').pack(side='left',padx=5);ttk.Entry(bar,textvariable=threshold,width=8).pack(side='left')
         if mode=='Voltage spectrum':
             ttk.Label(bar,text='Max Hz (0=auto)').pack(side='left',padx=5);ttk.Entry(bar,textvariable=maxfreq,width=9).pack(side='left')
@@ -287,7 +319,7 @@ class Instruments:
             for label in ('A','B'):ttk.Radiobutton(controls,text=label,variable=active_cursor,value=label).pack(side='left',padx=6)
         def redraw(event=None):
             try:
-                axis=result.axis;values=result.voltages[node_id(output.get())];reference_values=result.voltages[node_id(reference.get())]
+                axis=result.axis;values=result.voltages[node_id(output.get())];reference_values=(result.voltages[node_id(reference.get())] if reference.get()!='Off' else None)
                 if mode=='Bode':
                     if any(abs(v)<1e-14 for v in reference_values):raise ValueError('Input/reference is zero; select the driven node')
                     transfer=[v/i for v,i in zip(values,reference_values)]
@@ -304,7 +336,9 @@ class Instruments:
                 elif mode=='Logic traces':
                     level=number(threshold.get());sets=[('Thresholded V('+output.get()+')',[float(v>=level) for v in values])];xlabel='Time (s)';info='Analog threshold view only; not a digital gate simulator. Threshold = '+str(level)+' V.'
                 else:
-                    sets=[('CH1 V('+output.get()+')',values),('CH2 V('+reference.get()+')',reference_values)];xlabel='Time (s)';info='Sample times come from ngspice adaptive integration. Both channels share the displayed vertical scale.'
+                    sets=[('CH1 V('+output.get()+')',values)]
+                    if reference_values is not None:sets.append(('CH2 V('+reference.get()+')',reference_values))
+                    xlabel='Time (s)';info='Sample times come from ngspice adaptive integration. Both channels share the displayed vertical scale.'
                 self._draw_plot(area,axis,sets,xlabel,mode=='Bode',mode=='Logic traces')
                 if mode=='Oscilloscope':
                     for label,j in cursors.items():

@@ -2,6 +2,16 @@
 
 نسخة مكتبية مجانية مبنية على Qucs-S، تستهدف تدريجيًا سير عمل مألوفًا لمستخدمي NI Multisim. هذا المستودع ليس منتج NI ولا نسخة مكتملة من Multisim.
 
+## University AM demonstration
+
+Use **Simulate → Load AM Modulator**, then **F5** in the desktop workbench.
+The editable BF245B circuit uses the existing Qucs-S model and real ngspice:
+10 kHz carrier, 200 Hz message, measured modulation depth approximately 24.8%.
+See the [demonstration guide, actual screenshots and explicit limits](docs/UNIVERSITY_DEMO.md)
+and [enumerated test evidence](docs/evidence/university-demo/tests.json).
+The audit command rejects missing solver/display, skipped tests and fewer than
+200 distinct passing cases; model smoke cases are counted separately from UI tools.
+
 ## Desktop prototype
 
 For the independent, directly runnable Multisim-inspired interface, open `prototype/START_WINDOWS.bat` (Python with Tcl/Tk required), or run `python prototype/run_workbench.py`. See [prototype instructions](prototype/README.md). This GUI now invokes an independently installed ngspice engine for transient, DC and AC analyses. It includes source waveform controls, scope, meter, Bode, sampled spectrum and threshold traces. Qucs-S below remains a separate mature editor. See the [functional audit](docs/OPEN_SOURCE_AUDIT.md) for remaining gaps.

@@ -142,3 +142,51 @@ CI caught Python3.11 rejecting a reused quote inside the new course-UI f-string,
 - At branch revision `2432d365d`, Linux workbench workflow: **passed** including Python compile and GUI tests; subsequent screenshot expansion is retested by the pull request workflow.
 - Blocking parity gates: specific NI release pixel comparison unperformed; Windows high-DPI/manual click audit still needed; native Multisim project format interoperability, advanced instrumentation and equivalent NI simulation outputs still missing.
 - Acceptance: screenshots must contain a readable menus/toolbars/workspace with real RC wiring and modal picker; new GUI tests must pass before merging.
+
+## 2026-10-26 — University demonstration and distinct-case audit
+
+User required >=200 tests, functional instruments, open-source reuse and an AM
+circuit, with original code restricted to necessity. Fetched the pinned Qucs-S
+submodule and used its already adapted BF245B model plus the separately installed
+ngspice42 engine. No new solver or copied competing GUI source. This remains a
+desktop project; no hosted website was added.
+
+Reproduced generator Apply replacing configured sources with 5 V/1 kHz defaults,
+source switching retaining wrong values, and Fit resetting to 100%. Added failing
+native regressions, then fixed those specific paths. Preserve unchanged pulse
+parameters exactly, including delay/custom edges; edited pulses still use the
+existing generator's calculated edges/zero delay (stated in the panel). Added
+CH2 Off after visual inspection showed the larger carrier obscuring the AM trace.
+Added a hand-wired editable AM example, menu shortcut/analysis configuration,
+and equivalent course fixture using existing document/solver primitives.
+
+`verify_presentation.py` records distinct leaf test cases and fails on any skips
+or fewer than 200 passes. `capture_am_demo.py` captures actual native windows,
+exports the full solver CSV/table compressed losslessly, and records settled
+carrier/sideband measurements. CI repeats the audit and uploads evidence.
+
+Initial environment attempts: apt archive directory was unwritable; downloaded
+and extracted unmodified Ubuntu ngspice42/Xvfb dependencies into scratch instead.
+Missing spinit/XSPICE paths caused op-amp failures, corrected with the complete
+runtime and SPICE_LIB_DIR plus relocated runtime-only spinit paths. Missing
+xkbcomp initially prevented Xvfb; installed its downloaded executable. Early
+solver/GUI failures and skips are not counted as passes. Initial audit script
+omitted the repository root from sys.path, causing scripts.verify_rc import
+failure; corrected the runner before the final audit. Direct git HTTPS push lacks
+credentials here; publication uses the connected GitHub API instead.
+
+Guide and evidence: docs/UNIVERSITY_DEMO.md and docs/evidence/university-demo/.
+The latest verification.log and tests.json contain the exact final count and
+per-case statuses. 1226 model-bias smoke cases dominate that count: it does not
+prove comprehensive model characterization or that 1399 separate tools exist.
+AM ngspice result: 20027 samples; 10 kHz 31.01085 mV peak; 9.8/10.2 kHz sidebands
+3.84542/3.84541 mV peak; equivalent depth 24.8005%. Constant-gate negative control
+removes sidebands while preserving the carrier. Native scope, spectrum, meter,
+threshold traces and generator are exercised with real data; screenshots visually
+reviewed. Python bytecode compilation is not a Qt executable build.
+
+Limits: all NI Multisim tools are **not** implemented. Native Windows execution,
+new local Qucs-S Qt build, NI numerical comparisons, .ms14 roundtrip, MCU/HDL,
+advanced RF/noise/tolerance/trigger tools remain unverified/missing/blocked as
+listed in the guide. Next bounded task: native Windows launch/save/load/AM run
+with the complete ngspice installation before a professor-facing Windows package.

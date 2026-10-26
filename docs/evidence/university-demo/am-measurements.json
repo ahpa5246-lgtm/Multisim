@@ -1,0 +1,17 @@
+{
+  "carrier_Hz": 10000,
+  "message_Hz": 200,
+  "gate_bias_V": -1.2,
+  "gate_peak_V": 0.4,
+  "output_tone_peak_V": {
+    "9800": 0.003845419793573395,
+    "10000": 0.0310108543586832,
+    "10200": 0.0038454073595267186
+  },
+  "modulation_depth_from_lower_sideband": 0.24800476304817817,
+  "method": "Time-weighted sine/cosine projections from 5 ms to 25 ms; nonlinear AM includes harmonic distortion.",
+  "samples": 20027,
+  "model": "BF245B from pinned Qucs-S JFETs.lib",
+  "engine": "ngspice 42",
+  "NI_reference": false
+}
