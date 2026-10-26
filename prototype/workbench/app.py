@@ -79,7 +79,7 @@ class Workbench(Instruments, tk.Tk):
             'Edit':[('Undo',self.undo),('Redo',self.redo),None,('Delete Selected',self.delete_selected),('Rotate Selected',self.rotate),('Properties',self.properties)],
             'View':[('Zoom In',lambda:self.zoom(1.25)),('Zoom Out',lambda:self.zoom(.8)),('Zoom to Fit',self.fit),('Show Grid',self.toggle_grid)],
             'Place':[('Component... (Ctrl+W)',self.component_browser),('Net Alias',lambda:self.set_mode('NET')),('Current Source',lambda:self.set_mode('I')),('Potentiometer',lambda:self.set_mode('POT')),('Resistor',lambda:self.set_mode('R')),('Capacitor',lambda:self.set_mode('C')),('Inductor',lambda:self.set_mode('L')),('DC Voltage',lambda:self.set_mode('V')),('Ground',lambda:self.set_mode('GND')),('Diode',lambda:self.set_mode('D')),('LED',lambda:self.set_mode('LED')),('Switch',lambda:self.set_mode('SW')),None,('Wire',lambda:self.set_mode('wire'))],
-            'Simulate':[('Run Transient',self.run),('DC Operating Point',self.dc_analysis),('DC Sweep / I–V...',self.dc_sweep),('AC Sweep / Bode',self.bode),('Analysis Settings...',self.analysis_settings),('Stop',self.stop),None,('Oscilloscope',self.scope),('Multimeter',self.multimeter),('Function Generator',self.generator),('Logic Traces',self.logic),('Voltage Spectrum',self.spectrum_panel),('Export Simulation Data...',self.export_results),None,('Load RC Example',self.example),('Load Op-Amp Example',lambda:self.load_demo('opamp-follower.ocw.json')),('Load Transistor Example',lambda:self.load_demo('bjt-characteristic.ocw.json'))],
+            'Simulate':[('Run Transient',self.run),('DC Operating Point',self.dc_analysis),('DC Sweep / I–V...',self.dc_sweep),('AC Sweep / Bode',self.bode),('Analysis Settings...',self.analysis_settings),('Stop',self.stop),None,('Oscilloscope',self.scope),('Multimeter',self.multimeter),('Function Generator',self.generator),('Logic Traces',self.logic),('Voltage Spectrum',self.spectrum_panel),('Export Simulation Data...',self.export_results),None,('Load RC Example',self.example),('Load AM Example 1',lambda:self.load_demo('am-example1.ocw.json')),('Load Op-Amp Example',lambda:self.load_demo('opamp-follower.ocw.json')),('Load Transistor Example',lambda:self.load_demo('bjt-characteristic.ocw.json'))],
             'Tools':[('Course Experiments...',self.course_browser),('Check Experiment Results',self.check_experiment),('Components Browser',self.component_browser),('Inspect EW/Multisim Container...',self.inspect_container),('Project Information',self.project_info),('Electrical Rule Check',lambda:self.report_tabs.select(6))],
             'Reports':[('Netlist Preview',self.preview_netlist)],
             'Options':[('Grid Snap',self.toggle_snap),('Locate ngspice executable...',self.locate_ngspice)],
@@ -683,7 +683,12 @@ class Workbench(Instruments, tk.Tk):
         try:document=Document.load(Path(__file__).resolve().parents[2]/'examples'/name)
         except (OSError,ValueError) as e:messagebox.showerror('Example',str(e),parent=self);return
         self.stop();self.doc=document;self.result=None;self.timeline=None;self.filepath=None;self.selected=None
-        self.history.clear();self.future.clear();self.cancel();self.status('Loaded '+document.title)
+        self.history.clear();self.future.clear();self.cancel()
+        if name=='am-example1.ocw.json':
+            self.analysis=Analysis(kind='tran',duration=1,points=5000)
+            self.analysis_mode.set('Transient')
+        self.render()
+        self.status('Loaded '+document.title+' — Run Transient, then Oscilloscope')
     def course_browser(self):
         from .course_ui import browser
         browser(self)

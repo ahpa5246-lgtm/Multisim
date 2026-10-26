@@ -45,3 +45,13 @@ Simulate includes DC Sweep / I–V and loadable op-amp/transistor examples. Choo
 All 1,226 transistor models were smoke-checked with ngspice42 at one bias point; all three op-amps were checked in voltage followers. Comprehensive model/NI equivalence remains unverified. Full ngspice installation, including standard XSPICE code-model files, is required for polynomial op-amp macromodels.
 
 Source, original license, contributor attribution and deterministic rebuild script are included under workbench/data and scripts/import_qucs_devices.py. The compressed catalog records 18 unsupported upstream entries explicitly. Read [interoperability research](../docs/INTEROPERABILITY_RESEARCH.md) for native Multisim-file work that remains pending.
+
+## AM lecture Example 1 — live ngspice waveform
+
+Open **Simulate → Load AM Example 1** and then **Simulate → Run Transient** (or F5). A real ngspice job opens the Oscilloscope on completion. The circuit is also an editable project at [examples/am-example1.ocw.json](../examples/am-example1.ocw.json).
+
+The AM source syntax is `AM(carrier_Vpeak modulating_Vpeak carrier_Hz modulating_Hz)`, entered into a voltage source's Properties dialog or via **Function Generator → Waveform: AM**. The source is compiled to an ngspice behavioral voltage source and a zero-volt series current sense source. AM currently supports transient only; AC and DC sweeps reject it explicitly.
+
+The course exercise gives 5.9 and 1.2 vertical divisions measured **peak-to-peak**, with 2 V per division. Therefore the envelope peaks on the positive Y axis are **5.9 V and 1.2 V**, carrier amplitude is **3.55 V**, modulating amplitude is **2.35 V**, and the modulation index is **66.197%**. This corrects the peak-to-peak-vs-peak interpretation in the lecture's solution while preserving its modulation index. Frequencies were not supplied, so the demo uses **20 Hz carrier** and **1 Hz modulation** to fit one full envelope period in the scope. Both the carrier and the modulating envelope start at their positive maxima (cosine start).
+
+CI checks the analytically expected sample values at 0, 0.25, 0.5, 0.75 and 1.0 seconds using **real ngspice**; it also captures a real running circuit schematic and scope screen as Actions artifacts. See `prototype/tests/test_am.py` and `prototype/scripts/capture_am_example.py`.
