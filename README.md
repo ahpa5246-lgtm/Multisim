@@ -52,3 +52,7 @@ current sources/probes and potentiometers. Named nets persist with the circuit.
 See [course coverage and limits](docs/COURSE_COVERAGE.md) before assuming every
 textbook exercise or NI tool is supported. Run all fixtures with
 `python scripts/verify_course.py --output reports/course --raw`.
+
+### AM waveform example (lecture Example 1)
+
+The Python workbench now has an editable amplitude-modulation source and a ready-to-run circuit. Use **Simulate → Load AM Example 1 → Run Transient** to display the real ngspice output in the Oscilloscope. Voltage-source properties accept `AM(Vc Vm fc fm)`, and the Function Generator has an AM selection. The ready-made example uses corrected peak-to-peak readings: `Vc=3.55 V`, `Vm=2.35 V`, `fc=20 Hz`, `fm=1 Hz`; envelope range 1.2–5.9 V and modulation index 66.2%. Frequencies are illustrative because the lecture does not specify them. See [guide and verification](prototype/README.md#am-lecture-example-1--live-ngspice-waveform).
