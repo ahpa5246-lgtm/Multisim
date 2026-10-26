@@ -79,7 +79,7 @@ class Workbench(Instruments, tk.Tk):
             'Edit':[('Undo',self.undo),('Redo',self.redo),None,('Delete Selected',self.delete_selected),('Rotate Selected',self.rotate),('Properties',self.properties)],
             'View':[('Zoom In',lambda:self.zoom(1.25)),('Zoom Out',lambda:self.zoom(.8)),('Zoom to Fit',self.fit),('Show Grid',self.toggle_grid)],
             'Place':[('Component... (Ctrl+W)',self.component_browser),('Net Alias',lambda:self.set_mode('NET')),('Current Source',lambda:self.set_mode('I')),('Potentiometer',lambda:self.set_mode('POT')),('Resistor',lambda:self.set_mode('R')),('Capacitor',lambda:self.set_mode('C')),('Inductor',lambda:self.set_mode('L')),('DC Voltage',lambda:self.set_mode('V')),('Ground',lambda:self.set_mode('GND')),('Diode',lambda:self.set_mode('D')),('LED',lambda:self.set_mode('LED')),('Switch',lambda:self.set_mode('SW')),None,('Wire',lambda:self.set_mode('wire'))],
-            'Simulate':[('Run Transient',self.run),('DC Operating Point',self.dc_analysis),('DC Sweep / I–V...',self.dc_sweep),('AC Sweep / Bode',self.bode),('Analysis Settings...',self.analysis_settings),('Stop',self.stop),None,('Oscilloscope',self.scope),('Multimeter',self.multimeter),('Function Generator',self.generator),('Logic Traces',self.logic),('Voltage Spectrum',self.spectrum_panel),('Export Simulation Data...',self.export_results),None,('Load RC Example',self.example),('Load Op-Amp Example',lambda:self.load_demo('opamp-follower.ocw.json')),('Load Transistor Example',lambda:self.load_demo('bjt-characteristic.ocw.json'))],
+            'Simulate':[('Run Transient',self.run),('DC Operating Point',self.dc_analysis),('DC Sweep / I–V...',self.dc_sweep),('AC Sweep / Bode',self.bode),('Analysis Settings...',self.analysis_settings),('Stop',self.stop),None,('Oscilloscope',self.scope),('Multimeter',self.multimeter),('Function Generator',self.generator),('Logic Traces',self.logic),('Voltage Spectrum',self.spectrum_panel),('Export Simulation Data...',self.export_results),None,('Load AM Modulator',lambda:self.load_am()),('Load RC Example',self.example),('Load Op-Amp Example',lambda:self.load_demo('opamp-follower.ocw.json')),('Load Transistor Example',lambda:self.load_demo('bjt-characteristic.ocw.json'))],
             'Tools':[('Course Experiments...',self.course_browser),('Check Experiment Results',self.check_experiment),('Components Browser',self.component_browser),('Inspect EW/Multisim Container...',self.inspect_container),('Project Information',self.project_info),('Electrical Rule Check',lambda:self.report_tabs.select(6))],
             'Reports':[('Netlist Preview',self.preview_netlist)],
             'Options':[('Grid Snap',self.toggle_snap),('Locate ngspice executable...',self.locate_ngspice)],
@@ -376,7 +376,14 @@ class Workbench(Instruments, tk.Tk):
     def zoom(self,fac):
         nxt=max(.5,min(2.0,self.scale_factor*fac))
         self.scale_factor=nxt; self.zoom_value.set(f'{nxt*100:g}%'); self.render(); self.status(f'Zoom: {int(nxt*100)}%')
-    def fit(self): self.scale_factor=1; self.zoom_value.set('100%'); self.render(); self.canvas.xview_moveto(0);self.canvas.yview_moveto(0)
+    def fit(self):
+        self.update_idletasks()
+        width=max((p.x+170 for p in self.doc.parts),default=700)
+        height=max((p.y+140 for p in self.doc.parts),default=450)
+        self.scale_factor=max(.05,min(1.0,(max(200,self.canvas.winfo_width())-35)/width,
+                                      (max(150,self.canvas.winfo_height())-35)/height))
+        self.zoom_value.set(f'{self.scale_factor*100:.3g}%')
+        self.render();self.canvas.xview_moveto(0);self.canvas.yview_moveto(0)
     def on_mousewheel(self,event):
         if event.state & 0x0004: self.zoom(1.1 if event.delta>0 else .9)
         else: self.canvas.yview_scroll(-1 if event.delta>0 else 1,'units')
@@ -679,6 +686,12 @@ class Workbench(Instruments, tk.Tk):
         self.filepath=None;self.history.clear();self.future.clear();self.selected=None;self.timeline=None
         self.render();self.write_panel('results','Example: a 5 V DC source charges a 1 µF capacitor through 1 kΩ.\nClick Run to solve with ngspice. Use Simulate for DC/AC analysis.\nDouble-click a part to change its value.')
         self.status('Ready — sample RC circuit loaded')
+    def load_am(self):
+        from .course import BY_ID
+        self.load_demo('am-jfet.ocw.json')
+        self.analysis=BY_ID['am-jfet'].analysis;self.active_experiment='am-jfet'
+        self.analysis_mode.set('Transient');self.fit()
+
     def load_demo(self,name):
         try:document=Document.load(Path(__file__).resolve().parents[2]/'examples'/name)
         except (OSError,ValueError) as e:messagebox.showerror('Example',str(e),parent=self);return

@@ -221,6 +221,14 @@ add('rlc-resonance','Series RLC resonance','Student essentials','Circuit fundame
     V('VIN','input','0',1),R('R1','input','series','100'),('L1','L','10m',('series','out')),C('C1','out','0','1u')],Analysis(kind='ac',ac_source='VIN',start=10,stop=1e5,points=80),[dict(check('out',.99,1.01,'at_abs'),time=1591.54943)])
 add('led-resistor','LED series resistor and current','Student essentials','NI LED labs',[
     V('V1','input','0',5),R('R1','input','out','1k'),('D1','LED','Red',('out','0'))],checks=[check('I:V1',-.004,-.002)],note='Original generic red-LED electrical model. No physical brightness, spectrum or rated-current claim.')
+# Uses the existing GPL Qucs-S BF245B model; ngspice solves the nonlinear channel.
+add('am-jfet','AM modulation — BF245B variable-resistance circuit','Communications','Independent demonstration',[
+    ('J1','NJF','BF245B',('out','message','0')),
+    V('VC','carrier','0','SIN(0 .1 10000)'),
+    V('VM','message','0','SIN(-1.2 .4 200)'),
+    R('R1','carrier','out','1k')],Analysis(duration=.025,points=20000),
+    [check('out',.07,.10,'pp')],
+    note='Real Qucs-S BF245B JFET model with 10 kHz / 100 mV peak carrier and 200 Hz gate message (-1.2 V bias, 0.4 V peak). Nonlinear resistive AM, approximately 25% depth with distortion; not an ideal multiplier or a complete transmitter. Scope: out and carrier; spectrum: out, maximum 12000 Hz. Message is a biased control voltage, not recovered audio. See docs/UNIVERSITY_DEMO.md for measured sidebands and limits.')
 BY_ID={e.id:e for e in EXPERIMENTS}
 
 def node_vector(doc,result,name):

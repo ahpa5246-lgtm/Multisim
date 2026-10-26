@@ -1,0 +1,19 @@
+Open Circuit Workbench - ngspice
+.options reltol=1e-5 abstol=1e-12 vntol=1e-6
+JJ1 1 2 0 JMOD_J1 
+VVC 3 0 SIN(0 0.1 10000) AC 1
+VVM 2 0 SIN(-1.2 0.4 200) AC 0
+RR1 3 1 1000
+.model JMOD_J1 NJF (Vt0=-2.3085 Beta=0.00109045 Lambda=0.0231754 Rd=7.77648 Rs=7.77648 Is=2.59121e-16 Cgs=2e-12 Cgd=2.2e-12 Pb=0.991494 Fc=0.5 Kf=0 Af=1)
+.model OCW_D D(Is=1e-14 N=1)
+.model OCW_LED D(Is=1e-20 N=2)
+.control
+set noaskquit
+set wr_singlescale
+set wr_vecnames
+set numdgt=15
+tran 1.25e-06 0.025 uic
+wrdata result.dat v(1) v(2) v(3) i(vVC) i(vVM)
+quit
+.endc
+.end
