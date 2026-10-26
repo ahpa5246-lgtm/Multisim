@@ -8,7 +8,7 @@ import tkinter as tk
 from . import theme
 from tkinter import ttk, messagebox, filedialog
 from dataclasses import replace
-from .spice import Analysis, Engine, number, source_value
+from .spice import Analysis, Engine, number, source_value, am_parameters
 from .measurements import readings, spectrum, mean
 
 def node_options(result,include_ground=True):
@@ -118,8 +118,8 @@ class Instruments:
             return
         win = tk.Toplevel(self)
         win.title('XFG — Function Generator')
-        win.geometry('715x420')
-        win.minsize(615,390)
+        win.geometry('745x540')
+        win.minsize(645,510)
         win.configure(bg='#e4e8ed')
         win.transient(self)
         win.columnconfigure(0,weight=3)
@@ -152,12 +152,23 @@ class Instruments:
                     if values else ttk.Entry(settings,textvariable=var,width=18))
             widget.grid(row=i,column=1,padx=(3,12),pady=7,sticky='ew')
         row(0,'Source',selected,[p.id for p in sources])
-        row(1,'Waveform',form,['DC','Sine','Square','Triangle'])
+        row(1,'Waveform',form,['DC','Sine','Square','Triangle','AM'])
         for i,(name,value) in enumerate([
             ('Amplitude (V peak)','5'),('Offset (V)','0'),
-            ('Frequency (Hz)','1000'),('Duty cycle (%)','50')],2):
+            ('Frequency (Hz)','1000'),('Duty cycle (%)','50'),
+            ('Modulating amplitude (V)','2.35'),('Modulating frequency (Hz)','1')],2):
             fields[name] = tk.StringVar(value=value)
             row(i,name,fields[name])
+
+        original=next(p for p in sources if p.id==selected.get())
+        current_am=am_parameters(original.value)
+        if current_am is not None:
+            vc,vm,fc,fm=current_am
+            form.set('AM')
+            fields['Amplitude (V peak)'].set(f'{vc:g}')
+            fields['Frequency (Hz)'].set(f'{fc:g}')
+            fields['Modulating amplitude (V)'].set(f'{vm:g}')
+            fields['Modulating frequency (Hz)'].set(f'{fm:g}')
 
         screen = tk.Canvas(display,bg='#101b29',height=235,
                            highlightthickness=1,highlightbackground='#425a77')
@@ -182,15 +193,21 @@ class Instruments:
                 amp=number(fields['Amplitude (V peak)'].get())
                 offset=number(fields['Offset (V)'].get())
                 duty=number(fields['Duty cycle (%)'].get())
-                if amp<0 or not 0<duty<100:
-                    raise ValueError('Invalid amplitude or duty cycle')
+                mod_amp=number(fields['Modulating amplitude (V)'].get())
+                mod_freq=number(fields['Modulating frequency (Hz)'].get())
+                freq=number(fields['Frequency (Hz)'].get())
+                if amp<0 or not 0<duty<100 or (form.get()=='AM' and (amp<=0 or mod_amp<0 or mod_freq<=0 or freq<=mod_freq)):
+                    raise ValueError('Invalid waveform settings')
                 wave=form.get()
-                peak=max(1,abs(offset)+amp)*1.35
-                coords=[]
+                peak=max(1,abs(offset)+amp+(mod_amp if wave=='AM' else 0))*1.35
+                coords=[];upper=[];lower=[]
                 for i in range(401):
-                    t=2*i/400
+                    t=(i/400)/mod_freq if wave=='AM' else 2*i/400
                     phase=t%1
-                    if wave=='DC':
+                    if wave=='AM':
+                        envelope=amp+mod_amp*math.cos(2*math.pi*mod_freq*t)
+                        value=envelope*math.cos(2*math.pi*freq*t)
+                    elif wave=='DC':
                         value=offset
                     elif wave=='Sine':
                         value=offset+amp*math.sin(2*math.pi*t)
@@ -201,8 +218,14 @@ class Instruments:
                     x=left+(right-left)*i/400
                     y=(top+bottom)/2-(bottom-top)*.43*value/peak
                     coords.extend((x,y))
+                    if wave=='AM':
+                        upper.extend((x,(top+bottom)/2-(bottom-top)*.43*envelope/peak))
+                        lower.extend((x,(top+bottom)/2+(bottom-top)*.43*envelope/peak))
                 screen.create_line(*coords,fill='#5ad7f6',width=2,
                                    smooth=False)
+                if wave=='AM':
+                    screen.create_line(*upper,fill='#ffa552',width=2)
+                    screen.create_line(*lower,fill='#ffa552',width=2)
                 screen.create_text(left+5,top+8,text=f'{wave.upper()}  •  {amp:g} Vpk',
                                    fill='#c9dded',anchor='w',font=(theme.MONO,9))
                 display_caption.set('Calculated preview • apply source, then run ngspice')
@@ -214,11 +237,13 @@ class Instruments:
 
         def apply():
             try:
-                amp,offset,freq,duty=[number(x.get()) for x in fields.values()]
+                amp,offset,freq,duty,mod_amp,mod_freq=[number(x.get()) for x in fields.values()]
                 if amp<0 or freq<=0 or not 0<duty<100:
                     raise ValueError('Amplitude must be nonnegative; frequency positive; duty 0–100%')
                 if form.get()=='DC':value=str(offset)
                 elif form.get()=='Sine':value=f'SIN({offset:g} {amp:g} {freq:g})'
+                elif form.get()=='AM':
+                    value=f'AM({amp:g} {mod_amp:g} {freq:g} {mod_freq:g})'
                 else:
                     period=1/freq
                     rise=period/2 if form.get()=='Triangle' else min(period*1e-4,period*duty/200,period*(1-duty/100)/2)
@@ -231,7 +256,7 @@ class Instruments:
             except ValueError as e:
                 messagebox.showerror('Generator settings',str(e),parent=win)
 
-        ttk.Label(win,text='DC uses Offset. AC sweep uses the source selected in Analysis Settings.',
+        ttk.Label(win,text='AM uses carrier amplitude/frequency plus modulating amplitude/frequency (transient only).',
                   font=(theme.FAMILY,9)).grid(row=2,column=0,columnspan=2,
                                               sticky='w',padx=16,pady=(0,4))
         # Keep the apply button as a direct child: native keyboard focus and
